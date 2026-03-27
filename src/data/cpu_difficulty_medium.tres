@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CpuDifficulty" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/gameplay/cpu_difficulty.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+reaction_min = 0.6
+reaction_max = 1.5
+strategic_bias = 0.6
+chain_awareness = true
+threat_awareness = false
+near_capture_bonus = 5
+own_castle_penalty = -1

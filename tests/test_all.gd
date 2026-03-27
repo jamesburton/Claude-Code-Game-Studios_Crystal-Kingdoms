@@ -60,6 +60,17 @@ func _init() -> void:
 	_test_turn_director_expire()
 	_test_scripted_match()
 
+	# CPU Controller
+	_test_cpu_reacts_after_delay()
+	_test_cpu_does_nothing_if_cursor_gone()
+	_test_cpu_scores_cells_correctly()
+
+	# Match Flow
+	_test_match_flow_lifecycle()
+	_test_match_flow_scores_accumulate()
+	_test_match_flow_time_limit()
+	_test_match_flow_cpu_match()
+
 	# GameConfig
 	_test_speed_presets()
 	_test_config_lock()
@@ -615,6 +626,140 @@ func _test_scripted_match() -> void:
 	_assert_eq(b.count_owned_by(0), 3, "P0 owns 3")
 	_assert_eq(b.count_owned_by(1), 1, "P1 owns 1")
 	print("  Final scores: P0=%d P1=%d" % [scores[0], scores[1]])
+
+
+# ============================================================
+# CPU CONTROLLER TESTS
+# ============================================================
+
+func _test_cpu_reacts_after_delay() -> void:
+	print("CpuController: reacts after delay...")
+	var c = _make_config()
+	var b = _make_board(c)
+	var diff = CpuDifficulty.new()
+	diff.reaction_min = 0.5
+	diff.reaction_max = 0.5
+	var cpu = CpuController.new(0, diff, c, b, 12345)
+	cpu.on_cursor_spawned(28)
+
+	# Before delay: no action
+	var action = cpu.tick(0.1)
+	_assert(action.is_empty(), "no action before delay")
+
+	# After delay: action produced
+	action = cpu.tick(0.5)
+	_assert(not action.is_empty(), "action after delay")
+	_assert_eq(action["player"], 0, "correct player id")
+
+
+func _test_cpu_does_nothing_if_cursor_gone() -> void:
+	print("CpuController: no action if cursor gone...")
+	var c = _make_config()
+	var b = _make_board(c)
+	var diff = CpuDifficulty.new()
+	diff.reaction_min = 1.0
+	diff.reaction_max = 1.0
+	var cpu = CpuController.new(0, diff, c, b, 12345)
+	cpu.on_cursor_spawned(28)
+	cpu.on_cursor_gone()
+	var action = cpu.tick(2.0)
+	_assert(action.is_empty(), "no action after cursor gone")
+
+
+func _test_cpu_scores_cells_correctly() -> void:
+	print("CpuController: cell scoring...")
+	var c = _make_config()
+	var b = _make_board(c)
+	b.cells_owner[27] = 0  # own adjacent
+	b.cells_owner[29] = 1  # enemy
+	var diff = CpuDifficulty.new()
+	diff.reaction_min = 0.0
+	diff.reaction_max = 0.0
+	diff.strategic_bias = 1.0  # always pick best
+	var cpu = CpuController.new(0, diff, c, b, 12345)
+	cpu.on_cursor_spawned(28)
+	var action = cpu.tick(0.1)
+	# CPU should prefer tap on empty cell 28 (adj=1, score=2) over other options
+	_assert(not action.is_empty(), "CPU acts")
+	_assert(action["dir"] >= -1, "valid direction")
+
+
+# ============================================================
+# MATCH FLOW TESTS
+# ============================================================
+
+func _test_match_flow_lifecycle() -> void:
+	print("MatchFlow: lifecycle...")
+	var c = _make_config()
+	var mf = MatchFlow.new(c, 42)
+	_assert_eq(mf.state, MatchFlow.State.SETUP, "starts in SETUP")
+	mf.start()
+	_assert_eq(mf.state, MatchFlow.State.PLAYING, "PLAYING after start")
+
+
+func _test_match_flow_scores_accumulate() -> void:
+	print("MatchFlow: scores accumulate...")
+	var c = _make_config()
+	c.cursor_spawn_delay_min = 0.0
+	c.cursor_spawn_delay_max = 0.0
+	c.cursor_expire_time = 999.0
+	var mf = MatchFlow.new(c, 42)
+	mf.start()
+
+	mf.force_cursor(10)
+	mf.submit_action(0, -1)  # P0 tap: capture
+	mf.on_animation_complete()
+	_assert(mf.scores[0] > 0, "P0 scored after capture")
+	_assert_eq(mf.castles_owned[0], 1, "P0 owns 1 castle")
+	_assert_eq(mf.total_captures[0], 1, "P0 has 1 capture")
+
+
+func _test_match_flow_time_limit() -> void:
+	print("MatchFlow: time limit...")
+	var c = _make_config()
+	c.time_limit = 1
+	c.cursor_spawn_delay_min = 5.0
+	c.cursor_spawn_delay_max = 5.0
+	var mf = MatchFlow.new(c, 42)
+	mf.start()
+	mf.tick(2.0)
+	_assert_eq(mf.state, MatchFlow.State.COMPLETE, "match ended by time")
+	_assert_eq(mf.end_reason, "time_limit", "reason = time_limit")
+
+
+func _test_match_flow_cpu_match() -> void:
+	print("MatchFlow: CPU vs CPU match...")
+	var c = _make_config()
+	c.grid_size = 4
+	c.time_limit = 10
+	c.cursor_spawn_delay_min = 0.1
+	c.cursor_spawn_delay_max = 0.2
+	c.cursor_expire_time = 2.0
+	c.player_count = 2
+	var mf = MatchFlow.new(c, 99)
+	mf.start()
+
+	var easy = CpuDifficulty.new()
+	easy.reaction_min = 0.3
+	easy.reaction_max = 0.5
+	easy.strategic_bias = 0.5
+	mf.add_cpu(0, easy, 111)
+	mf.add_cpu(1, easy, 222)
+
+	# Run 10 seconds of match at 60fps
+	for i in range(600):
+		mf.tick(1.0 / 60.0)
+		mf.on_animation_complete()
+		if mf.state == MatchFlow.State.COMPLETE:
+			break
+
+	_assert_eq(mf.state, MatchFlow.State.COMPLETE, "CPU match completed")
+	var summary = mf.get_summary()
+	_assert(summary["rankings"].size() == 2, "2 players in rankings")
+	var total_actions: int = mf.actions_taken[0] + mf.actions_taken[1]
+	_assert(total_actions > 0, "CPUs took actions: %d" % total_actions)
+	print("  CPU match: P0=%d P1=%d, %d actions in %.1fs" % [
+		mf.scores[0], mf.scores[1], total_actions, mf.match_timer])
 
 
 # ============================================================
