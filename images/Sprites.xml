@@ -1,0 +1,56 @@
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+<texinfo
+	xmlns="http://xna.microsoft.com/textureinfo"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://xna.microsoft.com/textureinfo textureinfo.xsd"
+	>
+	<textures>
+		<!--texture name="arrow" src="arrow.bmp" size="56x14" colorkey="#000000" /-->
+		<texture name="Gem Blue" src="6x6 Gem Blue" size="6x6" />
+		<texture name="Gem Green" src="6x6 Gem Green" size="6x6" />
+		<texture name="Gem Orange" src="6x6 Gem Orange" size="6x6" />
+		<texture name="Gem Red" src="6x6 Gem Red" size="6x6" />
+		<texture name="Gem Yellow" src="6x6 Gem Yellow" size="6x6" />
+		<texture name="Gem Purple" src="6x6 Gem Purple" size="6x6" />
+		<texture name="Gem Cyan" src="6x6 Gem Cyan" size="6x6" />
+		<texture name="Gem Magenta" src="6x6 Gem Magenta" size="6x6" />
+		<texture name="Castle Blue" src="Basic Castle Start Blue" size="64x64" />
+		<texture name="Castle Green" src="Basic Castle Start Green" size="64x64" />
+		<texture name="Castle Orange" src="Basic Castle Start Orange" size="64x64" />
+		<texture name="Castle Red" src="Basic Castle Start Red" size="64x64" />
+		<texture name="Castle Yellow" src="Basic Castle Start Yellow" size="64x64" />
+		<texture name="Castle Purple" src="Basic Castle Start Purple" size="64x64" />
+		<texture name="Castle Cyan" src="Basic Castle Start Cyan" size="64x64" />
+		<texture name="Castle Magenta" src="Basic Castle Start Magenta" size="64x64" />
+		<texture name="Castle Empty" src="Basic Castle Start" size="64x64" />
+		<texture name="Cursor" src="Cursor 64x64" size="64x64" />
+	</textures>
+	<sprites>
+		<!--sprite name="arrow0" tex="arrow" loc="0,0" size="56x14" frames="4" framesize="14x14" origin="7,14" animate="false" rate="1" startframe="0" pos="50,60" />
+		<sprite name="arrow1" tex="arrow" loc="0,0" size="56x14" frames="4" framesize="14x14" origin="7,14" animate="true" rate="60" startframe="0" pos="65,60" />
+		<sprite name="arrow2" tex="arrow" loc="0,0" size="56x14" frames="4" framesize="14x14" origin="7,14" animate="true" rate="30" startframe="0" pos="80,60" />
+		<sprite name="arrow3" tex="arrow" loc="0,0" size="56x14" frames="4" framesize="14x14" origin="7,14" animate="true" rate="24" startframe="0" pos="95,60" />
+		<sprite name="arrow4" tex="arrow" loc="0,0" size="56x14" frames="4" framesize="14x14" origin="7,14" animate="true" rate="16" startframe="0" pos="110,60" />
+		<sprite name="arrow5" tex="arrow" loc="0,0" size="56x14" frames="4" framesize="14x14" origin="7,14" animate="true" rate="8" startframe="0" pos="125,60" />
+		<sprite name="arrow6" tex="arrow" loc="0,0" size="56x14" frames="4" framesize="14x14" origin="7,14" animate="true" rate="4" startframe="0" pos="140,60" />
+		<sprite name="arrow7" tex="arrow" loc="0,0" size="56x14" frames="4" framesize="14x14" origin="7,14" animate="true" rate="2" startframe="0" pos="155,60" /-->
+		<!--sprite name="Gem Blue" tex="Gem Blue" loc="0,0" size="6x6" frames="1" framesize="6x6" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Gem Green" tex="Gem Green" loc="0,0" size="6x6" frames="1" framesize="6x6" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Gem Orange" tex="Gem Orange" loc="0,0" size="6x6" frames="1" framesize="6x6" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Gem Red" tex="Gem Red" loc="0,0" size="6x6" frames="1" framesize="6x6" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Gem Yellow" tex="Gem Yellow" loc="0,0" size="6x6" frames="1" framesize="6x6" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Gem Purple" tex="Gem Purple" loc="0,0" size="6x6" frames="1" framesize="6x6" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Gem Cyan" tex="Gem Cyan" loc="0,0" size="6x6" frames="1" framesize="6x6" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Gem Magenta" tex="Gem Magenta" loc="0,0" size="6x6" frames="1" framesize="6x6" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Castle Blue" tex="Castle Blue" loc="0,0" size="64x64" frames="1" framesize="64x64" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Castle Green" tex="Castle Green" loc="0,0" size="64x64" frames="1" framesize="64x64" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Castle Orange" tex="Castle Orange" loc="0,0" size="64x64" frames="1" framesize="64x64" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Castle Red" tex="Castle Red" loc="0,0" size="64x64" frames="1" framesize="64x64" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Castle Yellow" tex="Castle Yellow" loc="0,0" size="64x64" frames="1" framesize="64x64" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Castle Purple" tex="Castle Purple" loc="0,0" size="64x64" frames="1" framesize="64x64" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Castle Cyan" tex="Castle Cyan" loc="0,0" size="64x64" frames="1" framesize="64x64" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Castle Magenta" tex="Castle Magenta" loc="0,0" size="64x64" frames="1" framesize="64x64" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Castle Empty" tex="Castle Empty" loc="0,0" size="64x64" frames="1" framesize="64x64" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" />
+		<sprite name="Cursor" tex="Cursor" loc="0,0" size="64x64" frames="1" framesize="64x64" origin="0,0" animate="false" rate="1" startframe="0" pos="0,0" /-->
+	</sprites>
+</texinfo>
