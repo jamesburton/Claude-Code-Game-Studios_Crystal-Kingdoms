@@ -1,12 +1,12 @@
-## Main game scene — config screen → match → results → loop.
-## Wires ConfigScreen, MatchFlow, BoardRenderer, HUD, and input.
+## App controller — manages the full game flow:
+## Studio Intro → Main Menu → Options/Play → Match → Results → Main Menu
 extends Control
 
 var _match_flow: MatchFlow
 var _renderer: BoardRenderer
 var _hud: GameHud
 var _sound: SoundManager
-var _config_screen: ConfigScreen
+var _music: MusicManager
 var _config: GameConfig
 var _player_setup: Array[Dictionary] = []
 var _human_players: Array[int] = []
@@ -17,43 +17,76 @@ var _pause_panel: Control
 var _paused: bool = false
 
 # Keyboard binding map: key → {player, direction}
-# Direction -1 = tap, 0-3 = CKEnums.Direction
 const KEY_BINDINGS: Dictionary = {
-	KEY_W: {"player": 0, "dir": 0},       # P1 UP
-	KEY_S: {"player": 0, "dir": 1},       # P1 DOWN
-	KEY_A: {"player": 0, "dir": 2},       # P1 LEFT
-	KEY_D: {"player": 0, "dir": 3},       # P1 RIGHT
-	KEY_SPACE: {"player": 0, "dir": -1},  # P1 TAP
-	KEY_UP: {"player": 1, "dir": 0},      # P2 UP
-	KEY_DOWN: {"player": 1, "dir": 1},    # P2 DOWN
-	KEY_LEFT: {"player": 1, "dir": 2},    # P2 LEFT
-	KEY_RIGHT: {"player": 1, "dir": 3},   # P2 RIGHT
-	KEY_ENTER: {"player": 1, "dir": -1},  # P2 TAP
-	KEY_I: {"player": 2, "dir": 0},       # P3 UP
-	KEY_K: {"player": 2, "dir": 1},       # P3 DOWN
-	KEY_J: {"player": 2, "dir": 2},       # P3 LEFT
-	KEY_L: {"player": 2, "dir": 3},       # P3 RIGHT
-	KEY_H: {"player": 2, "dir": -1},      # P3 TAP
-	KEY_KP_8: {"player": 3, "dir": 0},    # P4 UP
-	KEY_KP_5: {"player": 3, "dir": 1},    # P4 DOWN
-	KEY_KP_4: {"player": 3, "dir": 2},    # P4 LEFT
-	KEY_KP_6: {"player": 3, "dir": 3},    # P4 RIGHT
-	KEY_KP_0: {"player": 3, "dir": -1},   # P4 TAP
+	KEY_W: {"player": 0, "dir": 0}, KEY_S: {"player": 0, "dir": 1},
+	KEY_A: {"player": 0, "dir": 2}, KEY_D: {"player": 0, "dir": 3},
+	KEY_SPACE: {"player": 0, "dir": -1},
+	KEY_UP: {"player": 1, "dir": 0}, KEY_DOWN: {"player": 1, "dir": 1},
+	KEY_LEFT: {"player": 1, "dir": 2}, KEY_RIGHT: {"player": 1, "dir": 3},
+	KEY_ENTER: {"player": 1, "dir": -1},
+	KEY_I: {"player": 2, "dir": 0}, KEY_K: {"player": 2, "dir": 1},
+	KEY_J: {"player": 2, "dir": 2}, KEY_L: {"player": 2, "dir": 3},
+	KEY_H: {"player": 2, "dir": -1},
+	KEY_KP_8: {"player": 3, "dir": 0}, KEY_KP_5: {"player": 3, "dir": 1},
+	KEY_KP_4: {"player": 3, "dir": 2}, KEY_KP_6: {"player": 3, "dir": 3},
+	KEY_KP_0: {"player": 3, "dir": -1},
 }
+
+const STICK_DEADZONE := 0.5
 
 
 func _ready() -> void:
-	_show_config_screen()
+	# Persistent music manager
+	_music = MusicManager.new()
+	add_child(_music)
+
+	_show_intro()
 
 
-func _show_config_screen() -> void:
+# === FLOW MANAGEMENT ===
+
+func _show_intro() -> void:
+	_clear_scene()
+	var intro := StudioIntro.new()
+	intro.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(intro)
+	intro.finished.connect(_show_main_menu)
+
+
+func _show_main_menu() -> void:
 	_clear_scene()
 	_in_match = false
-	_config_screen = ConfigScreen.new()
-	_config_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_config_screen.size = get_viewport().get_visible_rect().size
-	add_child(_config_screen)
-	_config_screen.match_requested.connect(_on_match_requested)
+	_music.play_menu_music()
+
+	var menu := MainMenu.new()
+	menu.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(menu)
+	menu.play_pressed.connect(_show_play_screen)
+	menu.options_pressed.connect(_show_options)
+	menu.quit_pressed.connect(func() -> void: get_tree().quit())
+
+
+func _show_play_screen() -> void:
+	_clear_scene()
+
+	var config_screen := ConfigScreen.new()
+	config_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	config_screen.size = get_viewport().get_visible_rect().size
+	add_child(config_screen)
+	config_screen.match_requested.connect(_on_match_requested)
+
+	# Back button
+	var back := Button.new()
+	back.text = "Back"
+	back.position = Vector2(20, 20)
+	back.custom_minimum_size = Vector2(80, 35)
+	back.pressed.connect(_show_main_menu)
+	add_child(back)
+
+
+func _show_options() -> void:
+	# For now, options goes to config screen (same as play but without starting)
+	_show_play_screen()
 
 
 func _on_match_requested(config: GameConfig, setup: Array[Dictionary]) -> void:
@@ -65,24 +98,24 @@ func _on_match_requested(config: GameConfig, setup: Array[Dictionary]) -> void:
 func _start_match() -> void:
 	_clear_scene()
 	_in_match = true
+	_paused = false
 
-	# Dark background for contrast
+	# Dark background
 	var bg := ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.color = Color(0.08, 0.08, 0.1)
+	bg.color = Color(0.06, 0.06, 0.1)
 	add_child(bg)
 
-	# Determine which players are human
+	# Human players
 	_human_players.clear()
 	for p: Dictionary in _player_setup:
 		if not p["is_cpu"]:
 			_human_players.append(p["player_id"])
 
-	# Create match
+	# Match
 	_match_flow = MatchFlow.new(_config)
 	_match_flow.start()
 
-	# Add CPU controllers
 	for p: Dictionary in _player_setup:
 		if p["is_cpu"]:
 			var diff_level: int = p["difficulty"]
@@ -96,26 +129,25 @@ func _start_match() -> void:
 			if diff:
 				_match_flow.add_cpu(p["player_id"], diff)
 
-	# Board renderer
-	_renderer = BoardRenderer.new()
-	add_child(_renderer)
-	_renderer.setup(
-		_match_flow.board,
-		_match_flow.config.chain_step_delay,
-		get_viewport().get_visible_rect().size,
-		_match_flow.config.capture_threshold)
-	_renderer.animation_complete.connect(_on_animation_complete)
-
-	# Connect signals
 	_match_flow.action_events.connect(_on_action_events)
 	_match_flow.match_ended.connect(func(_s: Dictionary) -> void:
 		if _sound: _sound.play("match_end"))
-	_match_flow.turn_director.cursor_spawned.connect(func(_i: int) -> void:
-		if _sound: _sound.play("cursor_spawn"))
+
+	# Renderer
+	_renderer = BoardRenderer.new()
+	add_child(_renderer)
+	_renderer.setup(_match_flow.board, _match_flow.config.chain_step_delay,
+		get_viewport().get_visible_rect().size, _match_flow.config.capture_threshold)
+	_renderer.animation_complete.connect(_on_animation_complete)
 
 	# Sound
 	_sound = SoundManager.new()
 	add_child(_sound)
+	_match_flow.turn_director.cursor_spawned.connect(func(_i: int) -> void:
+		if _sound: _sound.play("cursor_spawn"))
+
+	# Music
+	_music.play_game_music()
 
 	# HUD
 	_hud = GameHud.new()
@@ -127,11 +159,13 @@ func _start_match() -> void:
 		_show_tutorial()
 
 
+# === GAME LOOP ===
+
 func _process(delta: float) -> void:
 	if _match_flow == null or _match_flow.state != MatchFlow.State.PLAYING:
 		return
 	if _tutorial_panel or _paused:
-		return  # Pause during tutorial or pause menu
+		return
 	_match_flow.tick(delta)
 	_check_input()
 
@@ -140,7 +174,6 @@ func _check_input() -> void:
 	if _match_flow.turn_director.state != TurnDirector.State.ACTIVE:
 		return
 
-	# Keyboard input
 	for key: int in KEY_BINDINGS:
 		if Input.is_key_pressed(key):
 			var binding: Dictionary = KEY_BINDINGS[key]
@@ -153,48 +186,35 @@ func _check_input() -> void:
 			_do_action(player, dir)
 			return
 
-	# Gamepad input — each connected gamepad maps to a human player
 	_check_gamepad_input()
 
-
-const STICK_DEADZONE := 0.5
 
 func _check_gamepad_input() -> void:
 	var pads := Input.get_connected_joypads()
 	for pad_idx: int in pads:
-		# Map gamepad index to the nth human player
 		if pad_idx >= _human_players.size():
 			break
 		var player: int = _human_players[pad_idx]
 
-		# D-pad / left stick directions
 		if Input.is_joy_button_pressed(pad_idx, JOY_BUTTON_DPAD_UP) \
 				or Input.get_joy_axis(pad_idx, JOY_AXIS_LEFT_Y) < -STICK_DEADZONE:
-			_do_action(player, CKEnums.Direction.UP)
-			return
+			_do_action(player, CKEnums.Direction.UP); return
 		if Input.is_joy_button_pressed(pad_idx, JOY_BUTTON_DPAD_DOWN) \
 				or Input.get_joy_axis(pad_idx, JOY_AXIS_LEFT_Y) > STICK_DEADZONE:
-			_do_action(player, CKEnums.Direction.DOWN)
-			return
+			_do_action(player, CKEnums.Direction.DOWN); return
 		if Input.is_joy_button_pressed(pad_idx, JOY_BUTTON_DPAD_LEFT) \
 				or Input.get_joy_axis(pad_idx, JOY_AXIS_LEFT_X) < -STICK_DEADZONE:
-			_do_action(player, CKEnums.Direction.LEFT)
-			return
+			_do_action(player, CKEnums.Direction.LEFT); return
 		if Input.is_joy_button_pressed(pad_idx, JOY_BUTTON_DPAD_RIGHT) \
 				or Input.get_joy_axis(pad_idx, JOY_AXIS_LEFT_X) > STICK_DEADZONE:
-			_do_action(player, CKEnums.Direction.RIGHT)
-			return
-
-		# Face button A/Cross = tap
+			_do_action(player, CKEnums.Direction.RIGHT); return
 		if Input.is_joy_button_pressed(pad_idx, JOY_BUTTON_A):
 			if _match_flow.config.allow_tap:
-				_do_action(player, -1)
-				return
+				_do_action(player, -1); return
 
 
 func _do_action(player: int, direction: int) -> void:
 	_match_flow.submit_action(player, direction)
-	# Events are rendered via action_events signal (handles human + CPU uniformly)
 
 
 func _on_action_events(events: Array) -> void:
@@ -202,28 +222,25 @@ func _on_action_events(events: Array) -> void:
 		_renderer.play_events(events)
 		_renderer.set_bonus_cells(_match_flow.bonus_stacks)
 	if _sound and not events.is_empty():
-		# Play SFX for the first significant event
 		for ev: Dictionary in events:
 			var ev_type: int = ev.get("type", -1)
 			match ev_type:
 				CKEnums.EventType.CAPTURE_EMPTY:
-					_sound.play("capture_empty")
-					break
+					_sound.play("capture_empty"); break
 				CKEnums.EventType.INCREMENT_CONTAGION:
-					_sound.play("contagion")
-					break
+					_sound.play("contagion"); break
 				CKEnums.EventType.CAPTURE_CONTAGION:
-					_sound.play("capture_contagion")
-					break
+					_sound.play("capture_contagion"); break
 				CKEnums.EventType.DESTROY_OWN_CASTLE:
-					_sound.play("destroy")
-					break
+					_sound.play("destroy"); break
 
 
 func _on_animation_complete() -> void:
 	if _match_flow:
 		_match_flow.on_animation_complete()
 
+
+# === OVERLAYS ===
 
 func _show_tutorial() -> void:
 	_tutorial_panel = Control.new()
@@ -290,14 +307,14 @@ func _pause() -> void:
 	spacer2.custom_minimum_size.y = 8
 	menu.add_child(spacer2)
 
-	var settings_btn := Button.new()
-	settings_btn.text = "Change Settings"
-	settings_btn.custom_minimum_size = Vector2(240, 40)
-	settings_btn.add_theme_font_size_override("font_size", 20)
-	settings_btn.pressed.connect(func() -> void:
+	var menu_btn := Button.new()
+	menu_btn.text = "Main Menu"
+	menu_btn.custom_minimum_size = Vector2(240, 40)
+	menu_btn.add_theme_font_size_override("font_size", 20)
+	menu_btn.pressed.connect(func() -> void:
 		_unpause()
-		_show_config_screen())
-	menu.add_child(settings_btn)
+		_show_main_menu())
+	menu.add_child(menu_btn)
 
 
 func _unpause() -> void:
@@ -307,37 +324,37 @@ func _unpause() -> void:
 		_pause_panel = null
 
 
-func _dismiss_tutorial() -> void:
-	if _tutorial_panel:
-		_tutorial_panel.queue_free()
-		_tutorial_panel = null
-		_tutorial_shown = true
-
+# === CLEANUP ===
 
 func _clear_scene() -> void:
-	# Disconnect signals before clearing to prevent stale callbacks
 	if _match_flow:
 		if _match_flow.action_events.is_connected(_on_action_events):
 			_match_flow.action_events.disconnect(_on_action_events)
 	if _renderer:
 		if _renderer.animation_complete.is_connected(_on_animation_complete):
 			_renderer.animation_complete.disconnect(_on_animation_complete)
+	# Keep _music — it's persistent
+	var keep_music := _music
 	for child in get_children():
-		child.queue_free()
+		if child != keep_music:
+			child.queue_free()
 	_match_flow = null
 	_renderer = null
 	_hud = null
 	_sound = null
-	_config_screen = null
+	_tutorial_panel = null
+	_pause_panel = null
+	_paused = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed):
 		return
 
-	# Dismiss tutorial on any key
 	if _tutorial_panel:
-		_dismiss_tutorial()
+		_tutorial_panel.queue_free()
+		_tutorial_panel = null
+		_tutorial_shown = true
 		return
 
 	match event.keycode:
@@ -348,7 +365,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if _paused:
 				_unpause()
 			elif _in_match and _match_flow and _match_flow.state == MatchFlow.State.COMPLETE:
-				_show_config_screen()
+				_show_main_menu()
 			elif _in_match and _match_flow and _match_flow.state == MatchFlow.State.PLAYING:
 				_pause()
 		KEY_F11:
