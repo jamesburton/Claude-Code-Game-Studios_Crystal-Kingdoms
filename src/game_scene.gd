@@ -88,6 +88,7 @@ func _show_main_menu() -> void:
 	add_child(menu)
 	menu.play_pressed.connect(func() -> void: _fade_to(_show_play_screen))
 	menu.online_pressed.connect(func() -> void: _fade_to(_show_lobby))
+	menu.replays_pressed.connect(func() -> void: _fade_to(_show_replays))
 	menu.options_pressed.connect(func() -> void: _fade_to(_show_options))
 	menu.quit_pressed.connect(func() -> void: get_tree().quit())
 
@@ -110,6 +111,20 @@ func _show_play_screen() -> void:
 	add_child(back)
 
 
+func _show_replays() -> void:
+	_clear_scene()
+	var replay_screen := ReplayScreen.new()
+	replay_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(replay_screen)
+	replay_screen.back_pressed.connect(func() -> void: _fade_to(_show_main_menu))
+
+
+var _net_server: GameServer
+var _net_client: GameClient
+var _is_network_match: bool = false
+var _my_net_slot: int = 0
+
+
 func _show_lobby() -> void:
 	_clear_scene()
 	var lobby := LobbyScreen.new()
@@ -117,13 +132,59 @@ func _show_lobby() -> void:
 	add_child(lobby)
 	lobby.back_pressed.connect(func() -> void: _fade_to(_show_main_menu))
 	lobby.match_ready.connect(func(server: GameServer, config: GameConfig) -> void:
-		# For now, start a local match with the server's player count
+		_net_server = server
+		_net_client = null
+		_is_network_match = true
+		_my_net_slot = 0
 		_config = config
 		_player_setup.clear()
 		for i in range(config.player_count):
 			_player_setup.append({"player_id": i, "name": "Player %d" % (i + 1),
 				"is_cpu": false, "difficulty": 0})
-		_fade_to(_start_match))
+		_fade_to(_start_network_host_match))
+
+
+func _start_network_host_match() -> void:
+	_clear_scene()
+	_in_match = true
+	_is_network_match = true
+
+	var bg := ColorRect.new()
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0.06, 0.06, 0.1)
+	add_child(bg)
+
+	# Server starts the match — it owns match_flow
+	_net_server.start_match(_config)
+	_match_flow = _net_server.match_flow
+	_human_players = [0]  # Host is player 0
+
+	# Wire server events to renderer
+	_match_flow.action_events.connect(_on_action_events)
+	_match_flow.match_ended.connect(func(_s: Dictionary) -> void:
+		if _sound: _sound.play("match_end"))
+
+	# Renderer
+	_renderer = BoardRenderer.new()
+	add_child(_renderer)
+	_renderer.setup(_match_flow.board, _match_flow.config.chain_step_delay,
+		get_viewport().get_visible_rect().size, _match_flow.config.capture_threshold)
+	_renderer.animation_complete.connect(_on_animation_complete)
+
+	# Sound
+	_sound = SoundManager.new()
+	add_child(_sound)
+	_match_flow.turn_director.cursor_spawned.connect(func(_i: int) -> void:
+		if _sound: _sound.play("cursor_spawn"))
+
+	_music.play_game_music()
+
+	# HUD
+	_hud = GameHud.new()
+	add_child(_hud)
+	_hud.setup(_match_flow)
+
+	_show_countdown()
 
 
 func _show_options() -> void:

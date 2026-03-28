@@ -5,6 +5,7 @@ extends Control
 
 signal play_pressed()
 signal online_pressed()
+signal replays_pressed()
 signal options_pressed()
 signal quit_pressed()
 
@@ -74,6 +75,12 @@ func _build_ui() -> void:
 	var online_btn := _make_button("Online (LAN)", 24)
 	online_btn.pressed.connect(func() -> void: online_pressed.emit())
 	btn_container.add_child(online_btn)
+
+	_add_btn_spacer(btn_container)
+
+	var replays_btn := _make_button("Replays", 24)
+	replays_btn.pressed.connect(func() -> void: replays_pressed.emit())
+	btn_container.add_child(replays_btn)
 
 	_add_btn_spacer(btn_container)
 
