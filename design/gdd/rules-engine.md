@@ -41,14 +41,14 @@ When a direction is provided (swipe action):
 
 1. Start at the cursor cell — resolve it using single-cell rules
 2. Determine if the chain continues:
-   - **Chain continues** after: `increment_contagion` (hitting enemy, not capturing)
-   - **Chain stops** after: `capture_empty`, `capture_contagion`, `destroy_own_castle`
+   - **Chain continues** after: `increment_contagion` OR `capture_contagion` (any enemy interaction)
+   - **Chain stops** after: `capture_empty`, `destroy_own_castle`
 3. If continuing, move to the next cell in the direction (using Board State `get_neighbor`)
 4. If next cell is -1 (off edge, no wrap): chain ends → emit `chain_ended`
 5. If next cell is the starting cell (wrap cycle): chain ends → emit `chain_ended`
 6. Repeat from step 2 with the new cell
 
-**Chain continuation rule**: A chain only continues through enemy castles that are NOT captured (contagion incremented but threshold not reached). Any other outcome stops the chain. This makes chains most powerful when sweeping through heavily defended enemy territory.
+**Chain continuation rule**: A chain continues through ALL enemy castle interactions — both contagion increments AND contagion captures. This means a powerful chain can sweep across enemy territory capturing multiple castles in a single action. Chains only stop on: empty castle capture, self-destroy, board edge, or cycle detection.
 
 #### Event Log
 
