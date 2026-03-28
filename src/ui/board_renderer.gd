@@ -66,9 +66,9 @@ var _popup_container: Node2D
 
 
 const SPRITE_BASE_SIZE := 256  ## Base texture size for castle sprites
-const HUD_TOP_MARGIN := 50  ## Space reserved for top HUD bar
-const HUD_BOTTOM_MARGIN := 30  ## Space reserved for bottom info
-const HUD_SIDE_MARGIN := 20  ## Minimum side padding
+
+## Returns true if viewport is portrait (taller than wide).
+var is_portrait: bool = false
 
 
 ## Initialize the renderer with board state.
@@ -93,15 +93,37 @@ func _on_viewport_resized() -> void:
 
 func _recalculate_layout() -> void:
 	var vp_size := get_viewport().get_visible_rect().size
-	var available_w := vp_size.x - HUD_SIDE_MARGIN * 2
-	var available_h := vp_size.y - HUD_TOP_MARGIN - HUD_BOTTOM_MARGIN
+	is_portrait = vp_size.y > vp_size.x
+
+	# In portrait: board centered with HUD above and below
+	# In landscape: board left-center with HUD on right side
+	var hud_margin_top := 50
+	var hud_margin_bottom := 30
+	var hud_margin_side := 20
+
+	if is_portrait:
+		# Board uses full width, HUD stacks above/below
+		hud_margin_top = 100  # more room for scores above
+		hud_margin_bottom = 40
+		hud_margin_side = 10
+
+	var available_w := vp_size.x - hud_margin_side * 2
+	var available_h := vp_size.y - hud_margin_top - hud_margin_bottom
 	var available := minf(available_w, available_h)
 	_cell_px = int(available / _grid_size) - CELL_GAP
-	_cell_px = maxi(_cell_px, 16)  # absolute minimum cell size
+	_cell_px = maxi(_cell_px, 16)
 	var total := _cell_px * _grid_size + CELL_GAP * (_grid_size - 1)
-	_grid_origin = Vector2(
-		(vp_size.x - total) / 2.0,
-		HUD_TOP_MARGIN + (available_h - total) / 2.0)
+
+	if is_portrait:
+		_grid_origin = Vector2(
+			(vp_size.x - total) / 2.0,
+			hud_margin_top + (available_h - total) / 2.0)
+	else:
+		# Landscape: offset board slightly left to leave room for HUD on right
+		var board_area_x := vp_size.x - 300  # reserve 300px for HUD
+		_grid_origin = Vector2(
+			(board_area_x - total) / 2.0,
+			hud_margin_top + (available_h - total) / 2.0)
 
 
 func _rebuild_positions() -> void:

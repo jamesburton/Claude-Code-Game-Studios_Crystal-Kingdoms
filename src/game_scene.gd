@@ -15,6 +15,7 @@ var _tutorial_shown: bool = false
 var _tutorial_panel: Control
 var _pause_panel: Control
 var _paused: bool = false
+var _countdown_active: bool = false
 
 # Keyboard binding map: key → {player, direction}
 const KEY_BINDINGS: Dictionary = {
@@ -154,9 +155,11 @@ func _start_match() -> void:
 	add_child(_hud)
 	_hud.setup(_match_flow)
 
-	# Tutorial on first match
+	# Tutorial on first match, otherwise countdown
 	if not _tutorial_shown:
 		_show_tutorial()
+	else:
+		_show_countdown()
 
 
 # === GAME LOOP ===
@@ -164,7 +167,7 @@ func _start_match() -> void:
 func _process(delta: float) -> void:
 	if _match_flow == null or _match_flow.state != MatchFlow.State.PLAYING:
 		return
-	if _tutorial_panel or _paused:
+	if _tutorial_panel or _paused or _countdown_active:
 		return
 	_match_flow.tick(delta)
 	_check_input()
@@ -266,6 +269,35 @@ func _show_tutorial() -> void:
 	text.add_theme_font_size_override("font_size", 22)
 	text.add_theme_color_override("font_color", Color(0.9, 0.9, 0.3))
 	_tutorial_panel.add_child(text)
+
+
+func _show_countdown() -> void:
+	_countdown_active = true
+	var vp := get_viewport().get_visible_rect().size
+	var lbl := Label.new()
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 72)
+	lbl.add_theme_color_override("font_color", Color(1, 1, 0.3))
+	lbl.position = Vector2(vp.x / 2 - 50, vp.y / 2 - 50)
+	lbl.size = Vector2(100, 100)
+	lbl.z_index = 100
+	add_child(lbl)
+
+	var tw := create_tween()
+	lbl.text = "3"
+	tw.tween_interval(0.6)
+	tw.tween_callback(func() -> void: lbl.text = "2")
+	tw.tween_interval(0.6)
+	tw.tween_callback(func() -> void: lbl.text = "1")
+	tw.tween_interval(0.6)
+	tw.tween_callback(func() -> void:
+		lbl.text = "GO!"
+		lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3)))
+	tw.tween_interval(0.4)
+	tw.tween_callback(func() -> void:
+		lbl.queue_free()
+		_countdown_active = false)
 
 
 func _pause() -> void:

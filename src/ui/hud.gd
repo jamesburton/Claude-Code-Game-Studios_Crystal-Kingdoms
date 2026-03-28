@@ -35,20 +35,33 @@ func _build_ui() -> void:
 	_timer_label.add_theme_color_override("font_color", Color.WHITE)
 	add_child(_timer_label)
 
-	# Score labels with color swatches for each player
+	# Player score cards
+	var card_height := 32 if _match_flow.config.player_count <= 4 else 24
+	var font_size := 18 if _match_flow.config.player_count <= 4 else 14
 	for i in range(_match_flow.config.player_count):
 		var color: Color = PLAYER_COLORS[i] if i < PLAYER_COLORS.size() else Color.WHITE
-		# Color swatch
-		var swatch := ColorRect.new()
-		swatch.size = Vector2(14, 14)
-		swatch.position = Vector2(20, 17 + i * 28)
-		swatch.color = color
-		add_child(swatch)
+		var y_pos := 8 + i * (card_height + 4)
+
+		# Card background
+		var card_bg := ColorRect.new()
+		card_bg.size = Vector2(280, card_height)
+		card_bg.position = Vector2(8, y_pos)
+		card_bg.color = Color(0.15, 0.15, 0.2, 0.8)
+		add_child(card_bg)
+
+		# Color bar on left edge
+		var bar := ColorRect.new()
+		bar.size = Vector2(4, card_height)
+		bar.position = Vector2(8, y_pos)
+		bar.color = color
+		add_child(bar)
+
 		# Score text
 		var lbl := Label.new()
-		lbl.position = Vector2(40, 10 + i * 28)
-		lbl.add_theme_font_size_override("font_size", 20)
-		lbl.add_theme_color_override("font_color", color)
+		lbl.position = Vector2(18, y_pos + 2)
+		lbl.size = Vector2(265, card_height - 4)
+		lbl.add_theme_font_size_override("font_size", font_size)
+		lbl.add_theme_color_override("font_color", Color.WHITE)
 		add_child(lbl)
 		_score_labels.append(lbl)
 
@@ -66,6 +79,36 @@ func _process(_delta: float) -> void:
 		return
 	_update_timer()
 	_update_scores()
+	_update_layout()
+
+
+func _update_layout() -> void:
+	var vp := get_viewport().get_visible_rect().size
+	var is_portrait := vp.y > vp.x
+
+	# Reposition timer
+	if is_portrait:
+		_timer_label.position = Vector2(vp.x / 2 - 60, 40)
+	else:
+		_timer_label.position = Vector2(vp.x - 180, 10)
+
+	# Reposition info
+	_info_label.position = Vector2(vp.x / 2 - 200, vp.y - 28)
+
+	# Reposition score cards
+	for i in range(_score_labels.size()):
+		if is_portrait:
+			# Top area, compact horizontal
+			var cols := mini(_score_labels.size(), 4)
+			var col := i % cols
+			var row := i / cols
+			var card_w := (vp.x - 20) / cols
+			_score_labels[i].position = Vector2(10 + col * card_w + 10, 4 + row * 28)
+		else:
+			# Right side, vertical stack
+			var x_pos := vp.x - 290
+			var card_height := 32 if _match_flow.config.player_count <= 4 else 24
+			_score_labels[i].position = Vector2(x_pos + 10, 8 + i * (card_height + 4) + 2)
 
 
 func _update_timer() -> void:
@@ -81,11 +124,25 @@ func _update_timer() -> void:
 
 
 func _update_scores() -> void:
+	# Sort players by score for ranking
+	var ranked: Array[Dictionary] = []
+	for i in range(_match_flow.config.player_count):
+		ranked.append({"id": i, "score": _match_flow.scores[i]})
+	ranked.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a["score"] > b["score"])
+
 	for i in range(_score_labels.size()):
 		var name: String = PLAYER_NAMES[i] if i < PLAYER_NAMES.size() else "P%d" % i
 		var castles: int = _match_flow.castles_owned[i]
-		_score_labels[i].text = "%s: %d pts | %d castles" % [
-			name, _match_flow.scores[i], castles]
+		var score: int = _match_flow.scores[i]
+		# Find rank
+		var rank := 1
+		for r: Dictionary in ranked:
+			if r["id"] == i:
+				break
+			rank += 1
+		var rank_badge: String = ["", "#1", "#2", "#3", "#4", "#5", "#6", "#7", "#8"][rank]
+		_score_labels[i].text = "%s %s  %d pts  %d castles" % [rank_badge, name, score, castles]
 
 
 func _show_end_screen(summary: Dictionary) -> void:

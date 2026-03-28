@@ -45,6 +45,7 @@ var _danger_slider: HSlider
 var _danger_label: Label
 var _bonus_slider: HSlider
 var _bonus_label: Label
+var _preset_name_edit: LineEdit
 var _player_rows: Array[Dictionary] = []
 var _start_button: Button
 var _container: VBoxContainer
@@ -99,7 +100,53 @@ func _build_ui() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_container.add_child(title)
 
-	_add_spacer(8)
+	_add_spacer(6)
+
+	# Preset quick-select
+	var preset_header := Label.new()
+	preset_header.text = "Quick Presets"
+	preset_header.add_theme_font_size_override("font_size", 14)
+	preset_header.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	_container.add_child(preset_header)
+
+	var preset_flow := HFlowContainer.new()
+	_container.add_child(preset_flow)
+
+	for preset: Dictionary in PresetManager.get_builtin_presets():
+		var btn := Button.new()
+		btn.text = preset["name"]
+		btn.tooltip_text = preset.get("description", "")
+		btn.custom_minimum_size = Vector2(100, 30)
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.pressed.connect(_apply_preset.bind(preset))
+		preset_flow.add_child(btn)
+
+	# User presets
+	var user_presets := PresetManager.load_user_presets()
+	for preset in user_presets:
+		var btn := Button.new()
+		btn.text = preset.get("name", "?")
+		btn.custom_minimum_size = Vector2(100, 30)
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+		btn.pressed.connect(_apply_preset.bind(preset))
+		preset_flow.add_child(btn)
+
+	# Save preset button
+	var save_row := HBoxContainer.new()
+	_container.add_child(save_row)
+	_preset_name_edit = LineEdit.new()
+	_preset_name_edit.placeholder_text = "Preset name..."
+	_preset_name_edit.custom_minimum_size = Vector2(200, 30)
+	save_row.add_child(_preset_name_edit)
+	var save_btn := Button.new()
+	save_btn.text = "Save Preset"
+	save_btn.custom_minimum_size = Vector2(100, 30)
+	save_btn.add_theme_font_size_override("font_size", 13)
+	save_btn.pressed.connect(_save_current_preset)
+	save_row.add_child(save_btn)
+
+	_add_spacer(6)
 
 	# Grid size
 	var grid_row := _add_slider_row("Grid Size", 6, 12, 8)
@@ -500,6 +547,44 @@ func _get_score_preview() -> String:
 	var cap := c.capture_scorer.preview(5)
 	return "Score preview (n=1..5):  Adjacency: %s  |  Contagion: %s  |  Capture: %s" % [
 		str(adj), str(con), str(cap)]
+
+
+func _apply_preset(preset: Dictionary) -> void:
+	_grid_size_slider.value = preset.get("grid_size", 8)
+	_threshold_slider.value = preset.get("capture_threshold", 3)
+	_time_slider.value = preset.get("time_limit", 90)
+	_player_count_slider.value = preset.get("player_count", 2)
+	_allow_tap_check.button_pressed = preset.get("allow_tap", true)
+	_wrap_check.button_pressed = preset.get("wrap_around", true)
+	if _shape_option:
+		_shape_option.selected = preset.get("board_shape", 0)
+	if _danger_slider:
+		_danger_slider.value = preset.get("danger_cell_count", 0)
+	if _bonus_slider:
+		_bonus_slider.value = preset.get("bonus_cell_count", 0)
+	_update_max_castles_default()
+	var mc: int = preset.get("max_castles", 0)
+	if mc > 0:
+		_max_castles_slider.value = mc
+
+
+func _save_current_preset() -> void:
+	var name_text := _preset_name_edit.text.strip_edges()
+	if name_text.is_empty():
+		return
+	var config := GameConfig.new()
+	config.grid_size = int(_grid_size_slider.value)
+	config.capture_threshold = int(_threshold_slider.value)
+	config.time_limit = int(_time_slider.value)
+	config.player_count = int(_player_count_slider.value)
+	config.max_castles = int(_max_castles_slider.value)
+	config.allow_tap = _allow_tap_check.button_pressed
+	config.board_shape = _shape_option.selected as CKEnums.BoardShape
+	config.danger_cell_count = int(_danger_slider.value)
+	config.bonus_cell_count = int(_bonus_slider.value)
+	var preset := PresetManager.config_to_preset(config, name_text)
+	PresetManager.save_user_preset(name_text, preset)
+	_preset_name_edit.text = ""
 
 
 func _on_start_pressed() -> void:
