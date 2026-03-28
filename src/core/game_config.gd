@@ -39,9 +39,14 @@ extends Resource
 
 # --- Board Shape ---
 @export var board_shape: CKEnums.BoardShape = CKEnums.BoardShape.RECTANGLE
+@export var skip_blanks: bool = true  ## Chains skip over blocked cells to next playable cell
 @export var pre_placed_castles: bool = false  ## Start with 1-2 castles per player
+@export var persistent_specials: bool = false  ## Special cells retain type after capture
 @export var danger_cell_count: int = 0  ## Cells with 50% scoring
 @export var bonus_cell_count: int = 0  ## Cells with 200% scoring
+@export var neutral_count: int = 0  ## Grey castles needing contagion to capture
+@export var reinforced_count: int = 0  ## +1 extra contagion, 150% score
+@export var fortified_count: int = 0  ## +2 extra contagion, 200% score
 
 # --- Input ---
 @export var allow_tap: bool = true  ## When false, only directional swipes work (no fire/tap)

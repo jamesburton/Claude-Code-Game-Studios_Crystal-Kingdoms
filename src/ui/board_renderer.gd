@@ -8,8 +8,10 @@ signal animation_complete()
 const CELL_GAP := 4
 const COLOR_EMPTY := Color(0.25, 0.25, 0.3)
 const COLOR_BLOCKED := Color(0.1, 0.1, 0.12)
-const COLOR_DANGER := Color(0.4, 0.15, 0.15)   ## Tint for 50% scoring cells
-const COLOR_BONUS := Color(0.35, 0.35, 0.1)    ## Tint for 200% scoring cells
+const COLOR_NEUTRAL := Color(0.35, 0.35, 0.38)  ## Grey for neutral castles
+const COLOR_DANGER := Color(0.4, 0.15, 0.15)    ## Tint for 50% scoring cells
+const COLOR_BONUS := Color(0.35, 0.35, 0.1)     ## Tint for 200% scoring cells
+const COLOR_REINFORCED := Color(0.45, 0.4, 0.3) ## Tint for reinforced cells
 const COLOR_CURSOR := Color(1.0, 1.0, 0.2, 0.8)
 const PLAYER_COLORS: Array[Color] = [
 	Color(0.2, 0.5, 1.0),   # Blue
@@ -388,30 +390,37 @@ func _update_cells() -> void:
 			_cell_labels[i].text = ""
 			continue
 
-		# Update sprite texture
+		var is_neutral := (owner == BoardState.NEUTRAL_OWNER)
+
+		# Sprite texture + tint
 		if _use_sprites and i < _cell_sprites.size():
 			_cell_sprites[i].visible = true
 			if owner == -1:
 				_cell_sprites[i].texture = _castle_empty_texture
-			elif owner < _castle_textures.size():
+				_cell_sprites[i].modulate = Color.WHITE
+			elif is_neutral:
+				_cell_sprites[i].texture = _castle_empty_texture
+				_cell_sprites[i].modulate = COLOR_NEUTRAL
+			elif owner >= 0 and owner < _castle_textures.size():
 				_cell_sprites[i].texture = _castle_textures[owner]
+				_cell_sprites[i].modulate = Color.WHITE
 
-		# Background color: tint for danger/bonus cells
-		var base_color: Color
-		if not _use_sprites:
-			if owner == -1:
-				base_color = COLOR_EMPTY
-			elif owner < PLAYER_COLORS.size():
-				base_color = PLAYER_COLORS[owner]
-			else:
-				base_color = COLOR_EMPTY
-			_cell_rects[i].color = base_color
+		# Background color
+		if owner == -1:
+			_cell_rects[i].color = COLOR_EMPTY
+		elif is_neutral:
+			_cell_rects[i].color = COLOR_NEUTRAL
+		elif not _use_sprites:
+			_cell_rects[i].color = PLAYER_COLORS[owner] if owner < PLAYER_COLORS.size() else COLOR_EMPTY
 
-		# Danger/bonus tint on the background rect
+		# Danger/bonus/reinforced tint
 		var mult: float = _board.cells_score_mult[i] if i < _board.cells_score_mult.size() else 1.0
-		if mult < 1.0:
+		var reinf: int = _board.cells_reinforcement[i] if i < _board.cells_reinforcement.size() else 0
+		if reinf > 0:
+			_cell_rects[i].color = _cell_rects[i].color.lerp(COLOR_REINFORCED, 0.3)
+		elif mult < 1.0:
 			_cell_rects[i].color = _cell_rects[i].color.lerp(COLOR_DANGER, 0.4)
-		elif mult > 1.0:
+		elif mult > 1.0 and not is_neutral:
 			_cell_rects[i].color = _cell_rects[i].color.lerp(COLOR_BONUS, 0.3)
 
 		# Contagion display

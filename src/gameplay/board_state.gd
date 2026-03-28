@@ -10,6 +10,9 @@ var cells_owner: Array[int] = []          ## -1 = empty, 0..N = player index
 var cells_contagion: Array[Dictionary] = [] ## [{player_id: int}] per cell
 var cells_blocked: Array[bool] = []       ## true = impassable, no cursor/capture/contagion
 var cells_score_mult: Array[float] = []   ## scoring multiplier per cell (1.0 = normal, 0.5 = danger, 2.0 = bonus)
+var cells_reinforcement: Array[int] = [] ## 0=normal, 1=reinforced (+1 contagion, 150%), 2=fortified (+2, 200%)
+
+const NEUTRAL_OWNER := -2  ## Special owner value for neutral castles
 var cursor_index: int = -1
 var cursor_active: bool = false
 
@@ -32,11 +35,13 @@ func _allocate_cells() -> void:
 	cells_contagion.resize(count)
 	cells_blocked.resize(count)
 	cells_score_mult.resize(count)
+	cells_reinforcement.resize(count)
 	for i in range(count):
 		cells_owner[i] = -1
 		cells_contagion[i] = {}
 		cells_blocked[i] = false
 		cells_score_mult[i] = 1.0
+		cells_reinforcement[i] = 0
 	cursor_index = -1
 	cursor_active = false
 
@@ -82,11 +87,27 @@ func _apply_special_cells(config: GameConfig) -> void:
 	playable.shuffle()
 	var idx := 0
 	# Danger cells (50% scoring)
-	for i in range(mini(config.danger_cell_count, playable.size() - idx)):
+	for _i in range(mini(config.danger_cell_count, playable.size() - idx)):
 		cells_score_mult[playable[idx]] = 0.5
 		idx += 1
 	# Bonus cells (200% scoring)
-	for i in range(mini(config.bonus_cell_count, playable.size() - idx)):
+	for _i in range(mini(config.bonus_cell_count, playable.size() - idx)):
+		cells_score_mult[playable[idx]] = 2.0
+		idx += 1
+	# Neutral castles (owned by NEUTRAL_OWNER, need contagion to capture)
+	for _i in range(mini(config.neutral_count, playable.size() - idx)):
+		cells_owner[playable[idx]] = NEUTRAL_OWNER
+		idx += 1
+	# Reinforced neutral castles (+1 extra contagion, 150% score)
+	for _i in range(mini(config.reinforced_count, playable.size() - idx)):
+		cells_owner[playable[idx]] = NEUTRAL_OWNER
+		cells_reinforcement[playable[idx]] = 1
+		cells_score_mult[playable[idx]] = 1.5
+		idx += 1
+	# Fortified neutral castles (+2 extra contagion, 200% score)
+	for _i in range(mini(config.fortified_count, playable.size() - idx)):
+		cells_owner[playable[idx]] = NEUTRAL_OWNER
+		cells_reinforcement[playable[idx]] = 2
 		cells_score_mult[playable[idx]] = 2.0
 		idx += 1
 

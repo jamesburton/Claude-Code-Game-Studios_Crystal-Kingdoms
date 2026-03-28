@@ -41,6 +41,14 @@ var _max_actions_slider: HSlider
 var _max_actions_label: Label
 var _preview_label: Label
 var _pre_placed_check: CheckBox
+var _skip_blanks_check: CheckBox
+var _persistent_check: CheckBox
+var _neutral_slider: HSlider
+var _neutral_label: Label
+var _reinforced_slider: HSlider
+var _reinforced_label: Label
+var _fortified_slider: HSlider
+var _fortified_label: Label
 var _danger_slider: HSlider
 var _danger_label: Label
 var _bonus_slider: HSlider
@@ -332,6 +340,8 @@ func _build_ui() -> void:
 	_container.add_child(special_header)
 
 	_pre_placed_check = _add_check_row("Pre-placed Castles", false)
+	_skip_blanks_check = _add_check_row("Skip Blanks in Chains", true)
+	_persistent_check = _add_check_row("Persistent Special Cells", false)
 
 	var danger_row := _add_slider_row("Danger Cells (50%)", 0, 20, 0)
 	_danger_slider = danger_row["slider"]
@@ -346,6 +356,27 @@ func _build_ui() -> void:
 	_bonus_slider.value_changed.connect(func(v: float) -> void:
 		_bonus_label.text = str(int(v)))
 	_bonus_label.text = "0"
+
+	var neut_row := _add_slider_row("Neutral Castles", 0, 20, 0)
+	_neutral_slider = neut_row["slider"]
+	_neutral_label = neut_row["value_label"]
+	_neutral_slider.value_changed.connect(func(v: float) -> void:
+		_neutral_label.text = str(int(v)))
+	_neutral_label.text = "0"
+
+	var reinf_row := _add_slider_row("Reinforced (+1)", 0, 10, 0)
+	_reinforced_slider = reinf_row["slider"]
+	_reinforced_label = reinf_row["value_label"]
+	_reinforced_slider.value_changed.connect(func(v: float) -> void:
+		_reinforced_label.text = str(int(v)))
+	_reinforced_label.text = "0"
+
+	var fort_row := _add_slider_row("Fortified (+2)", 0, 5, 0)
+	_fortified_slider = fort_row["slider"]
+	_fortified_label = fort_row["value_label"]
+	_fortified_slider.value_changed.connect(func(v: float) -> void:
+		_fortified_label.text = str(int(v)))
+	_fortified_label.text = "0"
 
 	# Coming Soon
 	_add_spacer(4)
@@ -603,8 +634,13 @@ func _on_start_pressed() -> void:
 
 	config.board_shape = _shape_option.selected as CKEnums.BoardShape
 	config.pre_placed_castles = _pre_placed_check.button_pressed
+	config.skip_blanks = _skip_blanks_check.button_pressed
+	config.persistent_specials = _persistent_check.button_pressed
 	config.danger_cell_count = int(_danger_slider.value)
 	config.bonus_cell_count = int(_bonus_slider.value)
+	config.neutral_count = int(_neutral_slider.value)
+	config.reinforced_count = int(_reinforced_slider.value)
+	config.fortified_count = int(_fortified_slider.value)
 	config.max_actions = int(_max_actions_slider.value)
 	config.adjacency_scorer.curve = _adj_curve_option.selected as CKEnums.CurveType
 	config.contagion_scorer.curve = _con_curve_option.selected as CKEnums.CurveType

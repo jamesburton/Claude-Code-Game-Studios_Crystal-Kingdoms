@@ -18,13 +18,12 @@ func _init(config: GameConfig, board: BoardState) -> void:
 func resolve_action(actor_id: int, cursor_index: int, direction: int) -> Array[Dictionary]:
 	var events: Array[Dictionary] = []
 
-	# Determine starting cell
+	# Determine starting cell (skip blanks if enabled)
 	var current := cursor_index
 	if direction >= 0:
-		var neighbor := _board.get_neighbor(cursor_index, direction as CKEnums.Direction)
-		if neighbor == -1 or _board.is_blocked(neighbor):
+		current = _next_playable(cursor_index, direction)
+		if current == -1:
 			return events
-		current = neighbor
 
 	# Cycle detection only when: wrap + unlimited castles + cursor_select_captured
 	var needs_cycle_check := _board.wrap_around \
@@ -44,11 +43,19 @@ func resolve_action(actor_id: int, cursor_index: int, direction: int) -> Array[D
 				break
 			visited[current] = true
 
-		# Skip blocked cells — chain ends
+		# Blocked cell handling
 		if _board.is_blocked(current):
-			events.append(_make_event(
-				CKEnums.EventType.CHAIN_ENDED, current, actor_id, 0, position))
-			break
+			if _config.skip_blanks and direction >= 0:
+				current = _next_playable(current, direction)
+				if current == -1:
+					events.append(_make_event(
+						CKEnums.EventType.CHAIN_ENDED, current, actor_id, 0, position))
+					break
+				continue  # Re-evaluate the new cell
+			else:
+				events.append(_make_event(
+					CKEnums.EventType.CHAIN_ENDED, current, actor_id, 0, position))
+				break
 
 		var ev := _resolve_cell(actor_id, current, position)
 		events.append(ev)
@@ -64,14 +71,13 @@ func resolve_action(actor_id: int, cursor_index: int, direction: int) -> Array[D
 		if direction < 0:
 			break
 
-		var next_cell := _board.get_neighbor(current, direction as CKEnums.Direction)
-		if next_cell == -1:
-			events.append(_make_event(
-				CKEnums.EventType.CHAIN_ENDED, current, actor_id, 0, position))
-			break
+		var next_cell: int
+		if _config.skip_blanks:
+			next_cell = _next_playable(current, direction)
+		else:
+			next_cell = _board.get_neighbor(current, direction as CKEnums.Direction)
 
-		# Non-cycle-check: still stop if we return to cursor origin
-		if next_cell == cursor_index:
+		if next_cell == -1 or next_cell == cursor_index:
 			events.append(_make_event(
 				CKEnums.EventType.CHAIN_ENDED, current, actor_id, 0, position))
 			break
@@ -98,6 +104,21 @@ func can_act(actor_id: int, cursor_index: int, actions_taken: int, castles_owned
 	return true
 
 
+## Find the next non-blocked cell in a direction, skipping blanks.
+## Returns -1 if none found (edge or cycle).
+func _next_playable(from: int, direction: int) -> int:
+	var current := from
+	var max_steps := _board.size * 2  # Safety limit
+	for _i in range(max_steps):
+		var next := _board.get_neighbor(current, direction as CKEnums.Direction)
+		if next == -1:
+			return -1
+		if not _board.is_blocked(next):
+			return next
+		current = next
+	return -1  # Safety: no playable cell found
+
+
 func _resolve_cell(actor_id: int, index: int, position: int) -> Dictionary:
 	var owner: int = _board.cells_owner[index]
 	var ev := _make_event(CKEnums.EventType.CAPTURE_EMPTY, index, actor_id, 0, position)
@@ -116,18 +137,30 @@ func _resolve_cell(actor_id: int, index: int, position: int) -> Dictionary:
 		ev["type"] = CKEnums.EventType.CAPTURE_EMPTY
 
 	elif owner != actor_id:
-		# Enemy castle — contagion
+		# Enemy or neutral castle — contagion
 		var cont: Dictionary = _board.cells_contagion[index]
 		var level: int = cont.get(actor_id, 0) + 1
 
-		if level >= _config.capture_threshold:
+		# Reinforcement adds extra contagion needed
+		var extra_threshold: int = _board.cells_reinforcement[index] if index < _board.cells_reinforcement.size() else 0
+		var effective_threshold := _config.capture_threshold + extra_threshold
+
+		if level >= effective_threshold:
 			# Capture via contagion threshold
 			var prev_owner := owner
-			var prev_adj := _board.count_adjacent_owned(index, prev_owner)
+			var prev_adj := 0
+			if prev_owner >= 0:
+				prev_adj = _board.count_adjacent_owned(index, prev_owner)
 			_board.cells_owner[index] = actor_id
 			_board.cells_contagion[index] = {}
 
-			# Capture score: n = actor's castle count post-capture, capped by threshold if < 4
+			# Revert special status unless persistent
+			if not _config.persistent_specials:
+				_board.cells_reinforcement[index] = 0
+				if _board.cells_score_mult[index] != 1.0:
+					_board.cells_score_mult[index] = 1.0
+
+			# Capture score
 			var actor_count := _board.count_owned_by(actor_id)
 			var capture_n := actor_count
 			if _config.capture_threshold < 4:
@@ -135,7 +168,8 @@ func _resolve_cell(actor_id: int, index: int, position: int) -> Dictionary:
 			ev["points_delta"] = maxi(1, int(_config.capture_scorer.effective(maxi(1, capture_n)) * cell_mult))
 			ev["type"] = CKEnums.EventType.CAPTURE_CONTAGION
 			ev["target_owner"] = prev_owner
-			ev["target_points_lost"] = _config.calc_points_lost(prev_adj)
+			if prev_owner >= 0:
+				ev["target_points_lost"] = _config.calc_points_lost(prev_adj)
 		else:
 			# Increment contagion
 			cont[actor_id] = level

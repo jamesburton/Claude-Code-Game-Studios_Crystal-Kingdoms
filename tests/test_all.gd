@@ -76,9 +76,13 @@ func _init() -> void:
 
 	# Board shapes & blocked cells
 	_test_blocked_cells()
-	_test_chain_stops_at_blocked()
+	_test_chain_stops_at_blocked_no_skip()
 	_test_diamond_shape()
 	_test_empty_cells_excludes_blocked()
+	_test_skip_blanks_chain()
+	_test_neutral_castle_contagion()
+	_test_reinforced_extra_threshold()
+	_test_persistent_specials()
 
 	# GameConfig
 	_test_default_max_castles()
@@ -843,16 +847,16 @@ func _test_blocked_cells() -> void:
 	_assert(!b.is_blocked(27), "cell 27 is not blocked")
 
 
-func _test_chain_stops_at_blocked() -> void:
-	print("RulesEngine: chain stops at blocked cell...")
+func _test_chain_stops_at_blocked_no_skip() -> void:
+	print("RulesEngine: chain stops at blocked (skip_blanks=false)...")
 	var c = _make_config()
+	c.skip_blanks = false
 	var b = _make_board(c)
 	b.cells_owner[29] = 1  # enemy
 	b.cells_blocked[30] = true  # blocked — chain should stop
 	var r = _make_rules(c, b)
 	var events = r.resolve_action(0, 28, CKEnums.Direction.RIGHT)
 	_assert_eq(events[0]["type"], CKEnums.EventType.INCREMENT_CONTAGION, "29 = contagion")
-	# Next cell is blocked → chain_ended
 	var last = events[events.size() - 1]
 	_assert_eq(last["type"], CKEnums.EventType.CHAIN_ENDED, "chain stopped at blocked")
 
@@ -878,6 +882,77 @@ func _test_empty_cells_excludes_blocked() -> void:
 	b.cells_blocked[1] = true
 	_assert_eq(b.get_empty_cells().size(), 14, "16 - 2 blocked = 14 empty")
 	_assert_eq(b.get_playable_count(), 14, "14 playable")
+
+
+func _test_skip_blanks_chain() -> void:
+	print("RulesEngine: skip blanks chain...")
+	var c = _make_config()
+	c.grid_size = 6
+	c.skip_blanks = true
+	var b = _make_board(c)
+	# Row 0: cursor at 0, cell 1 blocked, cell 2 = enemy, cell 3 = empty
+	b.cells_blocked[1] = true
+	b.cells_owner[2] = 1  # enemy
+	var r = _make_rules(c, b)
+	var events = r.resolve_action(0, 0, CKEnums.Direction.RIGHT)
+	# Should skip blocked cell 1, act on cell 2
+	_assert(events.size() >= 1, "skip blank produced events")
+	_assert_eq(events[0]["grid_index"], 2, "skipped blocked cell 1, acted on 2")
+	_assert_eq(events[0]["type"], CKEnums.EventType.INCREMENT_CONTAGION, "contagion on enemy")
+
+
+func _test_neutral_castle_contagion() -> void:
+	print("RulesEngine: neutral castle needs contagion...")
+	var c = _make_config()
+	c.capture_threshold = 2
+	var b = _make_board(c)
+	b.cells_owner[28] = BoardState.NEUTRAL_OWNER
+	var r = _make_rules(c, b)
+	# First tap: contagion increment
+	var events = r.resolve_action(0, 28, -1)
+	_assert_eq(events[0]["type"], CKEnums.EventType.INCREMENT_CONTAGION, "neutral = contagion first")
+	_assert_eq(b.cells_owner[28], BoardState.NEUTRAL_OWNER, "still neutral")
+	# Second tap: capture
+	events = r.resolve_action(0, 28, -1)
+	_assert_eq(events[0]["type"], CKEnums.EventType.CAPTURE_CONTAGION, "neutral captured")
+	_assert_eq(b.cells_owner[28], 0, "now owned by player 0")
+
+
+func _test_reinforced_extra_threshold() -> void:
+	print("RulesEngine: reinforced +1 needs extra contagion...")
+	var c = _make_config()
+	c.capture_threshold = 2
+	var b = _make_board(c)
+	b.cells_owner[28] = BoardState.NEUTRAL_OWNER
+	b.cells_reinforcement[28] = 1  # +1 extra → needs 3 total
+	var r = _make_rules(c, b)
+	r.resolve_action(0, 28, -1)  # level 1
+	r.resolve_action(0, 28, -1)  # level 2 — not enough (threshold + 1 = 3)
+	_assert_eq(b.cells_owner[28], BoardState.NEUTRAL_OWNER, "still neutral at level 2")
+	var events = r.resolve_action(0, 28, -1)  # level 3 — captures
+	_assert_eq(events[0]["type"], CKEnums.EventType.CAPTURE_CONTAGION, "captured at level 3")
+	_assert_eq(b.cells_owner[28], 0, "owned by P0")
+
+
+func _test_persistent_specials() -> void:
+	print("RulesEngine: persistent specials...")
+	var c = _make_config()
+	c.capture_threshold = 1
+	c.persistent_specials = true
+	var b = _make_board(c)
+	b.cells_owner[28] = 1
+	b.cells_score_mult[28] = 2.0  # bonus cell
+	var r = _make_rules(c, b)
+	r.resolve_action(0, 28, -1)  # capture
+	_assert_eq(b.cells_score_mult[28], 2.0, "persistent: bonus kept after capture")
+
+	# Non-persistent
+	c.persistent_specials = false
+	b.cells_owner[29] = 1
+	b.cells_score_mult[29] = 0.5
+	r = _make_rules(c, b)
+	r.resolve_action(0, 29, -1)
+	_assert_eq(b.cells_score_mult[29], 1.0, "non-persistent: reverted to normal")
 
 
 func _test_default_max_castles() -> void:
