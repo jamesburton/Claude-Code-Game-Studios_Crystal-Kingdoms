@@ -117,6 +117,9 @@ func force_cursor(index: int) -> void:
 ## Signal animation complete to allow turn cycle to proceed.
 func on_animation_complete() -> void:
 	turn_director.on_animation_complete()
+	# If time expired while resolving, end match now
+	if config.time_limit > 0 and match_timer >= config.time_limit and state == State.PLAYING:
+		_end_match("time_limit")
 
 
 ## Add a CPU controller for a player.

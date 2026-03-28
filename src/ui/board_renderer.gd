@@ -40,7 +40,7 @@ var _cursor_rect: ColorRect
 var _cursor_sprite: Sprite2D
 var _cursor_pulse: float = 0.0
 
-var _anim_queue: Array[Dictionary] = []
+var _anim_queue: Array = []  # Untyped to avoid Array[Dictionary] assignment issues
 var _anim_timer: float = 0.0
 var _chain_step_delay: float = 0.2
 
@@ -186,10 +186,12 @@ func _process(delta: float) -> void:
 
 
 ## Queue events for animation.
-func play_events(events: Array[Dictionary]) -> void:
-	_anim_queue = events.duplicate()
+func play_events(events: Array) -> void:
+	_anim_queue.clear()
+	for ev in events:
+		_anim_queue.append(ev)
 	_anim_timer = 0.0
-	if events.is_empty():
+	if _anim_queue.is_empty():
 		animation_complete.emit()
 
 

@@ -61,6 +61,12 @@ func _start_match() -> void:
 	_clear_scene()
 	_in_match = true
 
+	# Dark background for contrast
+	var bg := ColorRect.new()
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0.08, 0.08, 0.1)
+	add_child(bg)
+
 	# Determine which players are human
 	_human_players.clear()
 	for p: Dictionary in _player_setup:
