@@ -30,6 +30,7 @@ var _gem_textures: Array[Texture2D] = []
 var _use_sprites: bool = false
 
 var _board: BoardState
+var _capture_threshold: int = 3
 var _grid_size: int
 var _cell_px: int
 var _grid_origin := Vector2.ZERO
@@ -42,6 +43,12 @@ var _cursor_rect: ColorRect
 var _cursor_border: ReferenceRect
 var _cursor_sprite: Sprite2D
 var _cursor_pulse: float = 0.0
+var _cursor_spawn_scale: float = 1.0  # For spawn scale-in animation
+var _cursor_prev_index: int = -1  # Track cursor changes
+
+# Screen shake
+var _shake_timer: float = 0.0
+var _shake_intensity: float = 0.0
 
 var _anim_queue: Array = []  # Untyped to avoid Array[Dictionary] assignment issues
 var _anim_timer: float = 0.0
@@ -61,10 +68,11 @@ const HUD_SIDE_MARGIN := 20  ## Minimum side padding
 
 
 ## Initialize the renderer with board state.
-func setup(board: BoardState, chain_delay: float, _viewport_size: Vector2) -> void:
+func setup(board: BoardState, chain_delay: float, _viewport_size: Vector2, threshold: int = 3) -> void:
 	_board = board
 	_grid_size = board.size
 	_chain_step_delay = chain_delay
+	_capture_threshold = threshold
 
 	_load_textures()
 	_recalculate_layout()
@@ -235,28 +243,56 @@ func _process(delta: float) -> void:
 	if _board == null:
 		return
 
-	# Cursor pulse
+	# Screen shake
+	if _shake_timer > 0:
+		_shake_timer -= delta
+		var shake_amount := _shake_intensity * (_shake_timer / 0.2)
+		position = Vector2(randf_range(-shake_amount, shake_amount),
+			randf_range(-shake_amount, shake_amount))
+		if _shake_timer <= 0:
+			position = Vector2.ZERO
+
+	# Detect new cursor spawn for scale-in
+	if _board.cursor_active and _board.cursor_index >= 0 and _board.cursor_index != _cursor_prev_index:
+		_cursor_spawn_scale = 0.0
+		_cursor_pulse = 0.0
+		_cursor_prev_index = _board.cursor_index
+	elif not _board.cursor_active:
+		_cursor_prev_index = -1
+
+	# Cursor rendering
 	if _board.cursor_active and _board.cursor_index >= 0:
-		_cursor_pulse += delta * 6.0  # faster pulse for urgency
+		_cursor_pulse += delta * 6.0
+		# Scale-in animation
+		_cursor_spawn_scale = minf(_cursor_spawn_scale + delta * 8.0, 1.0)
+		var scale_ease := _cursor_spawn_scale * _cursor_spawn_scale * (3.0 - 2.0 * _cursor_spawn_scale)  # smoothstep
+
 		var cursor_pos := _cell_pos(_board.cursor_index)
 		var pulse_val := 0.7 + 0.3 * sin(_cursor_pulse)
 		var border_pad := maxi(4, _cell_px / 8)
+		var scaled_pad := int(border_pad * scale_ease)
+		var scaled_size := int(_cell_px * scale_ease)
+		var offset := (_cell_px - scaled_size) / 2.0
 
-		# Bright pulsing border — always visible
+		# Bright pulsing border — scales in
 		_cursor_border.visible = true
-		_cursor_border.position = cursor_pos - Vector2(border_pad, border_pad)
-		_cursor_border.border_color = Color(1.0, 1.0, 0.0, pulse_val)
+		_cursor_border.position = cursor_pos + Vector2(offset - scaled_pad, offset - scaled_pad)
+		_cursor_border.size = Vector2(scaled_size + scaled_pad * 2, scaled_size + scaled_pad * 2)
+		_cursor_border.border_color = Color(1.0, 1.0, 0.0, pulse_val * scale_ease)
 
-		# Yellow overlay on the cell
+		# Yellow overlay
 		_cursor_rect.visible = true
-		_cursor_rect.position = cursor_pos
-		_cursor_rect.color = Color(1.0, 1.0, 0.2, 0.3 + 0.2 * sin(_cursor_pulse))
+		_cursor_rect.position = cursor_pos + Vector2(offset, offset)
+		_cursor_rect.size = Vector2(scaled_size, scaled_size)
+		_cursor_rect.color = Color(1.0, 1.0, 0.2, (0.3 + 0.2 * sin(_cursor_pulse)) * scale_ease)
 
 		# Sprite if available
 		if _cursor_sprite:
-			_cursor_sprite.visible = true
-			_cursor_sprite.position = cursor_pos
-			_cursor_sprite.modulate = Color(1.0, 1.0, 1.0, pulse_val)
+			var sprite_scale := float(_cell_px) / SPRITE_BASE_SIZE * scale_ease
+			_cursor_sprite.visible = scale_ease > 0.1
+			_cursor_sprite.position = cursor_pos + Vector2(offset, offset)
+			_cursor_sprite.scale = Vector2(sprite_scale, sprite_scale)
+			_cursor_sprite.modulate = Color(1.0, 1.0, 1.0, pulse_val * scale_ease)
 	else:
 		_cursor_border.visible = false
 		_cursor_rect.visible = false
@@ -375,14 +411,16 @@ func _update_cell_contagion(cell_idx: int, cont: Dictionary) -> void:
 			gem_spr.scale = Vector2(float(gem_size) / 24.0, float(gem_size) / 24.0)
 			gem_container.add_child(gem_spr)
 
-			# Level count label next to gem
-			if level > 1:
-				var lvl_lbl := Label.new()
-				lvl_lbl.text = str(level)
-				lvl_lbl.position = positions[pos_idx] + Vector2(gem_size + 1, -2)
-				lvl_lbl.add_theme_font_size_override("font_size", clampi(gem_size - 2, 6, 12))
-				lvl_lbl.add_theme_color_override("font_color", PLAYER_COLORS[p_id] if p_id < PLAYER_COLORS.size() else Color.WHITE)
-				gem_container.add_child(lvl_lbl)
+			# Level/threshold label next to gem (e.g. "2/3")
+			var lvl_lbl := Label.new()
+			lvl_lbl.text = "%d/%d" % [level, _capture_threshold]
+			lvl_lbl.position = positions[pos_idx] + Vector2(gem_size + 1, -2)
+			lvl_lbl.add_theme_font_size_override("font_size", clampi(gem_size - 2, 6, 12))
+			var lbl_color: Color = PLAYER_COLORS[p_id] if p_id < PLAYER_COLORS.size() else Color.WHITE
+			if level >= _capture_threshold - 1:
+				lbl_color = Color(1.0, 0.3, 0.3)  # Red warning when close to capture
+			lvl_lbl.add_theme_color_override("font_color", lbl_color)
+			gem_container.add_child(lvl_lbl)
 
 			pos_idx += 1
 		else:
@@ -412,12 +450,24 @@ func _animate_event(ev: Dictionary) -> void:
 		_chain_line.add_point(cell_center)
 		_chain_line.default_color = Color(color, 0.6)
 
-	# Flash
+	# Flash — enhanced for captures
 	var rect := _cell_rects[index]
 	var tween := create_tween()
-	tween.tween_property(rect, "color", Color.WHITE, 0.05)
-	tween.tween_property(rect, "color",
-		color if _board.cells_owner[index] != -1 else COLOR_EMPTY, 0.15)
+	if ev_type == CKEnums.EventType.CAPTURE_CONTAGION:
+		# Big capture: bright white flash + screen shake
+		tween.tween_property(rect, "color", Color(1.0, 1.0, 0.8), 0.08)
+		tween.tween_property(rect, "color", color, 0.2)
+		_shake_timer = 0.2
+		_shake_intensity = maxf(3.0, _cell_px / 15.0)
+	elif ev_type == CKEnums.EventType.CAPTURE_EMPTY:
+		# Regular capture: quick white flash
+		tween.tween_property(rect, "color", Color(1.0, 1.0, 0.9), 0.06)
+		tween.tween_property(rect, "color", color, 0.12)
+	else:
+		# Contagion/destroy: subtle flash
+		tween.tween_property(rect, "color", Color.WHITE, 0.05)
+		tween.tween_property(rect, "color",
+			color if _board.cells_owner[index] != -1 else COLOR_EMPTY, 0.15)
 
 	# Point popup
 	var points: int = ev["points_delta"]

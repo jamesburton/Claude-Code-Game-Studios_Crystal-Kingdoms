@@ -197,6 +197,34 @@ func _build_ui() -> void:
 	preview_lbl.add_theme_color_override("font_color", Color(0.6, 0.7, 0.6))
 	_container.add_child(preview_lbl)
 
+	# Volume
+	var vol_row := _add_slider_row("Volume", 0, 100, 80)
+	var _vol_slider: HSlider = vol_row["slider"]
+	var _vol_label: Label = vol_row["value_label"]
+	_vol_slider.value_changed.connect(func(v: float) -> void:
+		_vol_label.text = "%d%%" % int(v)
+		var db := linear_to_db(v / 100.0)
+		AudioServer.set_bus_volume_db(0, db))
+	_vol_label.text = "80%"
+
+	# Fullscreen
+	_add_spacer(2)
+	var fs_row := HBoxContainer.new()
+	_container.add_child(fs_row)
+	var fs_lbl := Label.new()
+	fs_lbl.text = "Fullscreen (F11): "
+	fs_lbl.add_theme_font_size_override("font_size", 15)
+	fs_lbl.custom_minimum_size.x = 180
+	fs_row.add_child(fs_lbl)
+	var fs_check := CheckBox.new()
+	fs_check.button_pressed = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+	fs_check.toggled.connect(func(on: bool) -> void:
+		if on:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+		else:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED))
+	fs_row.add_child(fs_check)
+
 	# Coming Soon section
 	_add_spacer(6)
 	var cs_label := Label.new()

@@ -35,12 +35,19 @@ func _build_ui() -> void:
 	_timer_label.add_theme_color_override("font_color", Color.WHITE)
 	add_child(_timer_label)
 
-	# Score labels for each player
+	# Score labels with color swatches for each player
 	for i in range(_match_flow.config.player_count):
-		var lbl := Label.new()
-		lbl.position = Vector2(20, 10 + i * 28)
-		lbl.add_theme_font_size_override("font_size", 20)
 		var color: Color = PLAYER_COLORS[i] if i < PLAYER_COLORS.size() else Color.WHITE
+		# Color swatch
+		var swatch := ColorRect.new()
+		swatch.size = Vector2(14, 14)
+		swatch.position = Vector2(20, 17 + i * 28)
+		swatch.color = color
+		add_child(swatch)
+		# Score text
+		var lbl := Label.new()
+		lbl.position = Vector2(40, 10 + i * 28)
+		lbl.add_theme_font_size_override("font_size", 20)
 		lbl.add_theme_color_override("font_color", color)
 		add_child(lbl)
 		_score_labels.append(lbl)

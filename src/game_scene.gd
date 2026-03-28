@@ -11,6 +11,8 @@ var _config: GameConfig
 var _player_setup: Array[Dictionary] = []
 var _human_players: Array[int] = []
 var _in_match: bool = false
+var _tutorial_shown: bool = false
+var _tutorial_panel: Control
 
 # Keyboard binding map: key → {player, direction}
 # Direction -1 = tap, 0-3 = CKEnums.Direction
@@ -98,7 +100,8 @@ func _start_match() -> void:
 	_renderer.setup(
 		_match_flow.board,
 		_match_flow.config.chain_step_delay,
-		get_viewport().get_visible_rect().size)
+		get_viewport().get_visible_rect().size,
+		_match_flow.config.capture_threshold)
 	_renderer.animation_complete.connect(_on_animation_complete)
 
 	# Connect signals
@@ -117,10 +120,16 @@ func _start_match() -> void:
 	add_child(_hud)
 	_hud.setup(_match_flow)
 
+	# Tutorial on first match
+	if not _tutorial_shown:
+		_show_tutorial()
+
 
 func _process(delta: float) -> void:
 	if _match_flow == null or _match_flow.state != MatchFlow.State.PLAYING:
 		return
+	if _tutorial_panel:
+		return  # Pause during tutorial
 	_match_flow.tick(delta)
 	_check_input()
 
@@ -213,6 +222,39 @@ func _on_animation_complete() -> void:
 		_match_flow.on_animation_complete()
 
 
+func _show_tutorial() -> void:
+	_tutorial_panel = Control.new()
+	_tutorial_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_tutorial_panel.z_index = 100
+	add_child(_tutorial_panel)
+
+	var bg := ColorRect.new()
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0, 0, 0, 0.75)
+	_tutorial_panel.add_child(bg)
+
+	var vp := get_viewport().get_visible_rect().size
+	var text := Label.new()
+	text.text = "HOW TO PLAY\n\n" \
+		+ "A yellow cursor appears on the board\n" \
+		+ "Press a DIRECTION key to sweep in that direction\n" \
+		+ "Chains travel through enemy territory\n" \
+		+ "Build contagion to capture enemy castles\n" \
+		+ "First to act claims the cursor!\n\n" \
+		+ "Press any key to start..."
+	text.position = Vector2(vp.x / 2 - 200, vp.y / 2 - 100)
+	text.add_theme_font_size_override("font_size", 22)
+	text.add_theme_color_override("font_color", Color(0.9, 0.9, 0.3))
+	_tutorial_panel.add_child(text)
+
+
+func _dismiss_tutorial() -> void:
+	if _tutorial_panel:
+		_tutorial_panel.queue_free()
+		_tutorial_panel = null
+		_tutorial_shown = true
+
+
 func _clear_scene() -> void:
 	# Disconnect signals before clearing to prevent stale callbacks
 	if _match_flow:
@@ -234,12 +276,15 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed):
 		return
 
+	# Dismiss tutorial on any key
+	if _tutorial_panel:
+		_dismiss_tutorial()
+		return
+
 	match event.keycode:
 		KEY_R:
-			# Rematch with same config
 			if _in_match and _match_flow and _match_flow.state == MatchFlow.State.COMPLETE:
 				_start_match()
 		KEY_ESCAPE:
-			# Back to config from match-end or during gameplay
 			if _in_match:
 				_show_config_screen()
