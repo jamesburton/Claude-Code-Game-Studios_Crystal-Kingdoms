@@ -24,6 +24,10 @@ window/stretch/mode="canvas_items"
 
 project/assembly_name="Crystal Kingdoms"
 
+[debug]
+
+gdscript/warnings/integer_division=0
+
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
