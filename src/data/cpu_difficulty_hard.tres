@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1")
-reaction_min = 0.2
-reaction_max = 0.6
+reaction_min = 0.4
+reaction_max = 0.9
 strategic_bias = 0.9
 chain_awareness = true
 threat_awareness = true

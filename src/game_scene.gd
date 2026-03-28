@@ -100,6 +100,9 @@ func _start_match() -> void:
 		Vector2(1280, 720))
 	_renderer.animation_complete.connect(_on_animation_complete)
 
+	# Connect action events from MatchFlow (handles both human + CPU)
+	_match_flow.action_events.connect(_on_action_events)
+
 	# HUD
 	_hud = GameHud.new()
 	add_child(_hud)
@@ -136,10 +139,13 @@ func _check_input() -> void:
 
 
 func _do_action(player: int, direction: int) -> void:
-	var events = _match_flow.submit_action(player, direction)
-	if events.is_empty():
-		return
-	_renderer.play_events(events)
+	_match_flow.submit_action(player, direction)
+	# Events are rendered via action_events signal (handles human + CPU uniformly)
+
+
+func _on_action_events(events: Array) -> void:
+	if _renderer:
+		_renderer.play_events(events)
 
 
 func _on_animation_complete() -> void:
@@ -148,6 +154,13 @@ func _on_animation_complete() -> void:
 
 
 func _clear_scene() -> void:
+	# Disconnect signals before clearing to prevent stale callbacks
+	if _match_flow:
+		if _match_flow.action_events.is_connected(_on_action_events):
+			_match_flow.action_events.disconnect(_on_action_events)
+	if _renderer:
+		if _renderer.animation_complete.is_connected(_on_animation_complete):
+			_renderer.animation_complete.disconnect(_on_animation_complete)
 	for child in get_children():
 		child.queue_free()
 	_match_flow = null

@@ -10,7 +10,8 @@ signal action_resolved(event_log: Array[Dictionary])
 signal animation_complete_expected()
 signal match_should_end(reason: String)
 
-enum State { IDLE, SPAWNING, ACTIVE, CLAIMED, RESOLVING, COOLDOWN, STOPPED }
+enum State { IDLE, SPAWNING, APPEARING, ACTIVE, CLAIMED, RESOLVING, COOLDOWN, STOPPED }
+## APPEARING = cursor visible but not yet claimable (grace period)
 
 var state: State = State.IDLE
 var _config: GameConfig
@@ -20,7 +21,13 @@ var _rng: RandomNumberGenerator
 
 var _spawn_timer: float = 0.0
 var _cursor_timer: float = 0.0
+var _grace_timer: float = 0.0
 var _waiting_for_animation: bool = false
+
+## Grace period before cursor becomes claimable (seconds).
+## Gives players time to see where cursor appeared before racing.
+const CURSOR_GRACE_MIN: float = 0.15
+const CURSOR_GRACE_MAX: float = 0.35
 
 ## Per-player state tracked for constraint pre-checks.
 ## Set by MatchFlow after each action.
@@ -77,6 +84,12 @@ func tick(delta: float) -> void:
 			_spawn_timer -= delta
 			if _spawn_timer <= 0:
 				_do_spawn()
+		State.APPEARING:
+			# Cursor is visible but not claimable yet (grace period)
+			_grace_timer -= delta
+			_cursor_timer -= delta
+			if _grace_timer <= 0:
+				state = State.ACTIVE
 		State.ACTIVE:
 			_cursor_timer -= delta
 			if _cursor_timer <= 0:
@@ -129,10 +142,12 @@ func on_animation_complete() -> void:
 
 
 ## Force cursor to a specific position (for testing).
+## Force cursor to a specific position (for testing). Skips grace period.
 func force_cursor(index: int) -> void:
 	_board.cursor_index = index
 	_board.cursor_active = true
 	_cursor_timer = _config.cursor_expire_time
+	_grace_timer = 0.0
 	state = State.ACTIVE
 
 
@@ -153,8 +168,12 @@ func _do_spawn() -> void:
 		_board.cursor_index = empties[_rng.randi() % empties.size()]
 
 	_board.cursor_active = true
-	_cursor_timer = _config.cursor_expire_time
-	state = State.ACTIVE
+	# Randomize expire time: base ±25%
+	var expire_base := _config.cursor_expire_time
+	_cursor_timer = expire_base * _rng.randf_range(0.75, 1.25)
+	# Grace period: cursor visible but not claimable
+	_grace_timer = _rng.randf_range(CURSOR_GRACE_MIN, CURSOR_GRACE_MAX)
+	state = State.APPEARING
 	cursor_spawned.emit(_board.cursor_index)
 
 

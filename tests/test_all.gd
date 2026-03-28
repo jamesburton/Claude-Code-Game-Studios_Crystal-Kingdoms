@@ -56,6 +56,7 @@ func _init() -> void:
 
 	# S1-10: Integration — TurnDirector + scripted match
 	_test_turn_director_spawn()
+	_test_turn_director_grace_period()
 	_test_turn_director_claim()
 	_test_turn_director_expire()
 	_test_scripted_match()
@@ -546,10 +547,32 @@ func _test_turn_director_spawn() -> void:
 	var td = TurnDirector.new(c, b, r, 12345)
 	td.init_players(2)
 	td.start()
-	td.tick(0.1)
-	_assert_eq(td.state, TurnDirector.State.ACTIVE, "cursor is active")
+	td.tick(0.1)  # spawn → APPEARING
 	_assert(b.cursor_index >= 0, "cursor placed")
 	_assert(b.cursor_active, "cursor active flag")
+	td.tick(0.5)  # past grace period → ACTIVE
+	_assert_eq(td.state, TurnDirector.State.ACTIVE, "cursor is active after grace")
+
+func _test_turn_director_grace_period() -> void:
+	print("TurnDirector: grace period...")
+	var c = _make_config()
+	c.cursor_spawn_delay_min = 0.0
+	c.cursor_spawn_delay_max = 0.0
+	var b = _make_board(c)
+	var r = _make_rules(c, b)
+	var td = TurnDirector.new(c, b, r, 12345)
+	td.init_players(2)
+	td.start()
+	td.tick(0.1)  # triggers spawn
+	_assert_eq(td.state, TurnDirector.State.APPEARING, "cursor in grace period")
+	_assert(b.cursor_active, "cursor visible during grace")
+	# Action during grace period should be rejected
+	var events = td.submit_action(0, -1)
+	_assert(events.is_empty(), "action rejected during grace")
+	# After grace period, should be claimable
+	td.tick(0.5)
+	_assert_eq(td.state, TurnDirector.State.ACTIVE, "cursor now active")
+
 
 func _test_turn_director_claim() -> void:
 	print("TurnDirector: cursor claim...")
@@ -574,8 +597,8 @@ func _test_turn_director_expire() -> void:
 	var r = _make_rules(c, b)
 	var td = TurnDirector.new(c, b, r, 12345)
 	td.init_players(2)
-	td.force_cursor(28)
-	td.tick(0.2)  # expire
+	td.force_cursor(28)  # force_cursor skips grace, goes straight to ACTIVE
+	td.tick(0.5)  # expire (randomized ±25% of 0.1 = 0.075-0.125, so 0.5 is well past)
 	_assert_eq(td.state, TurnDirector.State.COOLDOWN, "state = cooldown")
 	_assert(!b.cursor_active, "cursor expired")
 

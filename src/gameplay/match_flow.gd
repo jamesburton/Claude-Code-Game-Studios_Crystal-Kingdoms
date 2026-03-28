@@ -6,6 +6,7 @@ extends RefCounted
 
 signal match_started()
 signal scores_updated()
+signal action_events(events: Array)  ## Emitted for ALL actions (human + CPU) for renderer
 signal match_ended(summary: Dictionary)
 
 enum State { SETUP, PLAYING, ENDING, COMPLETE }
@@ -94,6 +95,7 @@ func tick(delta: float) -> void:
 
 
 ## Submit a player action (from input system or CPU).
+## Always emits action_events signal so renderer can animate.
 func submit_action(player_id: int, direction: int) -> Array[Dictionary]:
 	if state != State.PLAYING:
 		return []
@@ -103,6 +105,7 @@ func submit_action(player_id: int, direction: int) -> Array[Dictionary]:
 		return []
 
 	_process_events(player_id, events)
+	action_events.emit(events)
 	return events
 
 
