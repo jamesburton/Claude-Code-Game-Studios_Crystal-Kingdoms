@@ -4,6 +4,7 @@
 
 [resource]
 script = ExtResource("1")
+display_name = "Novice"
 reaction_min = 1.5
 reaction_max = 3.5
 strategic_bias = 0.3

@@ -3,6 +3,7 @@
 class_name CpuDifficulty
 extends Resource
 
+@export var display_name: String = "CPU"  ## Shown in player setup
 @export var reaction_min: float = 0.8  ## Fastest possible reaction (seconds)
 @export var reaction_max: float = 1.8  ## Slowest reaction (seconds)
 @export var strategic_bias: float = 0.6  ## Probability of choosing optimal action vs random

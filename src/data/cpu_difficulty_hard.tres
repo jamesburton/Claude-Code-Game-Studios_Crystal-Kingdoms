@@ -4,6 +4,7 @@
 
 [resource]
 script = ExtResource("1")
+display_name = "Champion"
 reaction_min = 0.35
 reaction_max = 0.8
 strategic_bias = 0.9

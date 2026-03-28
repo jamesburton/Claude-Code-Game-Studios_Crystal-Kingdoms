@@ -102,6 +102,8 @@ func _resolve_cell(actor_id: int, index: int, position: int) -> Dictionary:
 	var owner: int = _board.cells_owner[index]
 	var ev := _make_event(CKEnums.EventType.CAPTURE_EMPTY, index, actor_id, 0, position)
 
+	var cell_mult: float = _board.cells_score_mult[index] if index < _board.cells_score_mult.size() else 1.0
+
 	if owner == -1:
 		# Empty castle — capture
 		_board.cells_owner[index] = actor_id
@@ -110,7 +112,7 @@ func _resolve_cell(actor_id: int, index: int, position: int) -> Dictionary:
 		if adj == 0 and _config.lone_castle_scores_zero:
 			ev["points_delta"] = 0
 		else:
-			ev["points_delta"] = _config.adjacency_scorer.effective(maxi(1, adj))
+			ev["points_delta"] = maxi(1, int(_config.adjacency_scorer.effective(maxi(1, adj)) * cell_mult))
 		ev["type"] = CKEnums.EventType.CAPTURE_EMPTY
 
 	elif owner != actor_id:
@@ -130,7 +132,7 @@ func _resolve_cell(actor_id: int, index: int, position: int) -> Dictionary:
 			var capture_n := actor_count
 			if _config.capture_threshold < 4:
 				capture_n = mini(capture_n, _config.capture_threshold)
-			ev["points_delta"] = _config.capture_scorer.effective(maxi(1, capture_n))
+			ev["points_delta"] = maxi(1, int(_config.capture_scorer.effective(maxi(1, capture_n)) * cell_mult))
 			ev["type"] = CKEnums.EventType.CAPTURE_CONTAGION
 			ev["target_owner"] = prev_owner
 			ev["target_points_lost"] = _config.calc_points_lost(prev_adj)
@@ -141,7 +143,7 @@ func _resolve_cell(actor_id: int, index: int, position: int) -> Dictionary:
 			if _config.scoring_mode == CKEnums.ScoringMode.ONLY_CASTLES:
 				ev["points_delta"] = 0
 			else:
-				ev["points_delta"] = _config.contagion_scorer.effective(level)
+				ev["points_delta"] = maxi(1, int(_config.contagion_scorer.effective(level) * cell_mult))
 			ev["type"] = CKEnums.EventType.INCREMENT_CONTAGION
 			ev["contagion_level"] = level
 

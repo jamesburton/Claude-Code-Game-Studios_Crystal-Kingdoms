@@ -9,6 +9,7 @@ var wrap_around: bool
 var cells_owner: Array[int] = []          ## -1 = empty, 0..N = player index
 var cells_contagion: Array[Dictionary] = [] ## [{player_id: int}] per cell
 var cells_blocked: Array[bool] = []       ## true = impassable, no cursor/capture/contagion
+var cells_score_mult: Array[float] = []   ## scoring multiplier per cell (1.0 = normal, 0.5 = danger, 2.0 = bonus)
 var cursor_index: int = -1
 var cursor_active: bool = false
 
@@ -20,6 +21,9 @@ func _init(config: GameConfig = null) -> void:
 	wrap_around = config.wrap_around
 	_allocate_cells()
 	_apply_board_shape(config.board_shape)
+	_apply_special_cells(config)
+	if config.pre_placed_castles:
+		_apply_pre_placed(config.player_count)
 
 
 func _allocate_cells() -> void:
@@ -27,10 +31,12 @@ func _allocate_cells() -> void:
 	cells_owner.resize(count)
 	cells_contagion.resize(count)
 	cells_blocked.resize(count)
+	cells_score_mult.resize(count)
 	for i in range(count):
 		cells_owner[i] = -1
 		cells_contagion[i] = {}
 		cells_blocked[i] = false
+		cells_score_mult[i] = 1.0
 	cursor_index = -1
 	cursor_active = false
 
@@ -67,6 +73,37 @@ func _apply_board_shape(shape: CKEnums.BoardShape) -> void:
 				var dist := sqrt(dr * dr + dc * dc)
 				if dist < center * 0.3 or dist > center + 0.5:
 					cells_blocked[i] = true
+
+
+func _apply_special_cells(config: GameConfig) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var playable := get_empty_cells()
+	playable.shuffle()
+	var idx := 0
+	# Danger cells (50% scoring)
+	for i in range(mini(config.danger_cell_count, playable.size() - idx)):
+		cells_score_mult[playable[idx]] = 0.5
+		idx += 1
+	# Bonus cells (200% scoring)
+	for i in range(mini(config.bonus_cell_count, playable.size() - idx)):
+		cells_score_mult[playable[idx]] = 2.0
+		idx += 1
+
+
+func _apply_pre_placed(player_count: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	var empties := get_empty_cells()
+	empties.shuffle()
+	# Give each player 1-2 starting castles
+	var per_player := mini(2, empties.size() / player_count)
+	var idx := 0
+	for p in range(player_count):
+		for _j in range(per_player):
+			if idx < empties.size():
+				cells_owner[empties[idx]] = p
+				idx += 1
 
 
 ## Convert flat index to (row, col).

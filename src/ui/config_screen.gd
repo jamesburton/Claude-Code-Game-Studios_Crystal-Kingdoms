@@ -40,6 +40,11 @@ var _cap_curve_option: OptionButton
 var _max_actions_slider: HSlider
 var _max_actions_label: Label
 var _preview_label: Label
+var _pre_placed_check: CheckBox
+var _danger_slider: HSlider
+var _danger_label: Label
+var _bonus_slider: HSlider
+var _bonus_label: Label
 var _player_rows: Array[Dictionary] = []
 var _start_button: Button
 var _container: VBoxContainer
@@ -271,10 +276,34 @@ func _build_ui() -> void:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED))
 	fs_row.add_child(fs_check)
 
-	# Coming Soon section
-	_add_spacer(6)
+	# Special cells
+	_add_spacer(4)
+	var special_header := Label.new()
+	special_header.text = "Special Cells"
+	special_header.add_theme_font_size_override("font_size", 14)
+	special_header.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	_container.add_child(special_header)
+
+	_pre_placed_check = _add_check_row("Pre-placed Castles", false)
+
+	var danger_row := _add_slider_row("Danger Cells (50%)", 0, 20, 0)
+	_danger_slider = danger_row["slider"]
+	_danger_label = danger_row["value_label"]
+	_danger_slider.value_changed.connect(func(v: float) -> void:
+		_danger_label.text = str(int(v)))
+	_danger_label.text = "0"
+
+	var bonus_row := _add_slider_row("Bonus Cells (200%)", 0, 20, 0)
+	_bonus_slider = bonus_row["slider"]
+	_bonus_label = bonus_row["value_label"]
+	_bonus_slider.value_changed.connect(func(v: float) -> void:
+		_bonus_label.text = str(int(v)))
+	_bonus_label.text = "0"
+
+	# Coming Soon
+	_add_spacer(4)
 	var cs_label := Label.new()
-	cs_label.text = "Coming Soon: Danger Cells, Bonus Cells, Boosts, Board Shapes"
+	cs_label.text = "Coming Soon: Boosts, Online Multiplayer"
 	cs_label.add_theme_font_size_override("font_size", 12)
 	cs_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
 	_container.add_child(cs_label)
@@ -488,6 +517,9 @@ func _on_start_pressed() -> void:
 	config.cursor_select_captured = _cursor_captured_check.button_pressed
 
 	config.board_shape = _shape_option.selected as CKEnums.BoardShape
+	config.pre_placed_castles = _pre_placed_check.button_pressed
+	config.danger_cell_count = int(_danger_slider.value)
+	config.bonus_cell_count = int(_bonus_slider.value)
 	config.max_actions = int(_max_actions_slider.value)
 	config.adjacency_scorer.curve = _adj_curve_option.selected as CKEnums.CurveType
 	config.contagion_scorer.curve = _con_curve_option.selected as CKEnums.CurveType
