@@ -50,6 +50,7 @@ var _cursor_prev_index: int = -1  # Track cursor changes
 var _shake_timer: float = 0.0
 var _shake_intensity: float = 0.0
 
+var _bonus_cells: Dictionary = {}  # {cell_index: player_id} for bonus castle markers
 var _anim_queue: Array = []  # Untyped to avoid Array[Dictionary] assignment issues
 var _anim_timer: float = 0.0
 var _chain_step_delay: float = 0.2
@@ -328,6 +329,15 @@ func cell_position(index: int) -> Vector2:
 	return _cell_pos(index)
 
 
+## Update which cells have bonus castle markers.
+func set_bonus_cells(bonus_stacks: Array) -> void:
+	_bonus_cells.clear()
+	for player_id in range(bonus_stacks.size()):
+		var stack: Array = bonus_stacks[player_id]
+		for cell_idx: int in stack:
+			_bonus_cells[cell_idx] = player_id
+
+
 ## Get cell pixel size.
 func get_cell_size() -> int:
 	return _cell_px
@@ -361,6 +371,11 @@ func _update_cells() -> void:
 		# Contagion display
 		var cont: Dictionary = _board.cells_contagion[i]
 		_update_cell_contagion(i, cont)
+
+		# Bonus castle marker (star symbol in top-right)
+		# Handled via contagion label fallback — add star to label if cell is bonus
+		if i in _bonus_cells and owner != -1:
+			_cell_labels[i].text = _cell_labels[i].text + " *" if _cell_labels[i].text != "" else "*"
 
 
 ## Gem positions around the cell edges (offsets from cell top-left, up to 8 players).
@@ -454,15 +469,17 @@ func _animate_event(ev: Dictionary) -> void:
 	var rect := _cell_rects[index]
 	var tween := create_tween()
 	if ev_type == CKEnums.EventType.CAPTURE_CONTAGION:
-		# Big capture: bright white flash + screen shake
+		# Big capture: bright white flash + screen shake + particles
 		tween.tween_property(rect, "color", Color(1.0, 1.0, 0.8), 0.08)
 		tween.tween_property(rect, "color", color, 0.2)
 		_shake_timer = 0.2
 		_shake_intensity = maxf(3.0, _cell_px / 15.0)
+		_spawn_particles(cell_center, color, 12)
 	elif ev_type == CKEnums.EventType.CAPTURE_EMPTY:
-		# Regular capture: quick white flash
+		# Regular capture: quick white flash + small particles
 		tween.tween_property(rect, "color", Color(1.0, 1.0, 0.9), 0.06)
 		tween.tween_property(rect, "color", color, 0.12)
+		_spawn_particles(cell_center, color, 6)
 	else:
 		# Contagion/destroy: subtle flash
 		tween.tween_property(rect, "color", Color.WHITE, 0.05)
@@ -480,6 +497,25 @@ func _animate_event(ev: Dictionary) -> void:
 		var target_owner: int = ev.get("target_owner", -1)
 		if target_owner >= 0 and target_owner < PLAYER_COLORS.size():
 			_spawn_popup(index, "%d" % target_lost, PLAYER_COLORS[target_owner])
+
+
+func _spawn_particles(center: Vector2, color: Color, count: int) -> void:
+	for i in range(count):
+		var p := ColorRect.new()
+		var size := randf_range(3, 6)
+		p.size = Vector2(size, size)
+		p.color = color
+		p.position = center - Vector2(size / 2, size / 2)
+		_popup_container.add_child(p)
+
+		var angle := randf() * TAU
+		var dist := randf_range(20, 60)
+		var target := center + Vector2(cos(angle) * dist, sin(angle) * dist)
+		var tw := create_tween()
+		tw.tween_property(p, "position", target, randf_range(0.3, 0.6))
+		tw.parallel().tween_property(p, "modulate:a", 0.0, randf_range(0.3, 0.6))
+		tw.parallel().tween_property(p, "size", Vector2.ZERO, randf_range(0.3, 0.6))
+		tw.tween_callback(p.queue_free)
 
 
 func _spawn_popup(index: int, text: String, color: Color) -> void:

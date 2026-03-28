@@ -13,6 +13,8 @@ var _human_players: Array[int] = []
 var _in_match: bool = false
 var _tutorial_shown: bool = false
 var _tutorial_panel: Control
+var _pause_panel: Control
+var _paused: bool = false
 
 # Keyboard binding map: key → {player, direction}
 # Direction -1 = tap, 0-3 = CKEnums.Direction
@@ -128,8 +130,8 @@ func _start_match() -> void:
 func _process(delta: float) -> void:
 	if _match_flow == null or _match_flow.state != MatchFlow.State.PLAYING:
 		return
-	if _tutorial_panel:
-		return  # Pause during tutorial
+	if _tutorial_panel or _paused:
+		return  # Pause during tutorial or pause menu
 	_match_flow.tick(delta)
 	_check_input()
 
@@ -198,6 +200,7 @@ func _do_action(player: int, direction: int) -> void:
 func _on_action_events(events: Array) -> void:
 	if _renderer:
 		_renderer.play_events(events)
+		_renderer.set_bonus_cells(_match_flow.bonus_stacks)
 	if _sound and not events.is_empty():
 		# Play SFX for the first significant event
 		for ev: Dictionary in events:
@@ -248,6 +251,62 @@ func _show_tutorial() -> void:
 	_tutorial_panel.add_child(text)
 
 
+func _pause() -> void:
+	_paused = true
+	_pause_panel = Control.new()
+	_pause_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pause_panel.z_index = 100
+	add_child(_pause_panel)
+
+	var bg := ColorRect.new()
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0, 0, 0, 0.7)
+	_pause_panel.add_child(bg)
+
+	var vp := get_viewport().get_visible_rect().size
+	var menu := VBoxContainer.new()
+	menu.position = Vector2(vp.x / 2 - 120, vp.y / 2 - 80)
+	_pause_panel.add_child(menu)
+
+	var title := Label.new()
+	title.text = "PAUSED"
+	title.add_theme_font_size_override("font_size", 32)
+	title.add_theme_color_override("font_color", Color.WHITE)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	menu.add_child(title)
+
+	var spacer := Control.new()
+	spacer.custom_minimum_size.y = 20
+	menu.add_child(spacer)
+
+	var resume_btn := Button.new()
+	resume_btn.text = "Resume"
+	resume_btn.custom_minimum_size = Vector2(240, 40)
+	resume_btn.add_theme_font_size_override("font_size", 20)
+	resume_btn.pressed.connect(_unpause)
+	menu.add_child(resume_btn)
+
+	var spacer2 := Control.new()
+	spacer2.custom_minimum_size.y = 8
+	menu.add_child(spacer2)
+
+	var settings_btn := Button.new()
+	settings_btn.text = "Change Settings"
+	settings_btn.custom_minimum_size = Vector2(240, 40)
+	settings_btn.add_theme_font_size_override("font_size", 20)
+	settings_btn.pressed.connect(func() -> void:
+		_unpause()
+		_show_config_screen())
+	menu.add_child(settings_btn)
+
+
+func _unpause() -> void:
+	_paused = false
+	if _pause_panel:
+		_pause_panel.queue_free()
+		_pause_panel = null
+
+
 func _dismiss_tutorial() -> void:
 	if _tutorial_panel:
 		_tutorial_panel.queue_free()
@@ -286,5 +345,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			if _in_match and _match_flow and _match_flow.state == MatchFlow.State.COMPLETE:
 				_start_match()
 		KEY_ESCAPE:
-			if _in_match:
+			if _paused:
+				_unpause()
+			elif _in_match and _match_flow and _match_flow.state == MatchFlow.State.COMPLETE:
 				_show_config_screen()
+			elif _in_match and _match_flow and _match_flow.state == MatchFlow.State.PLAYING:
+				_pause()
+		KEY_F11:
+			if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			else:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)

@@ -33,6 +33,12 @@ var _wrap_check: CheckBox
 var _scoring_mode_option: OptionButton
 var _lone_castle_check: CheckBox
 var _cursor_captured_check: CheckBox
+var _adj_curve_option: OptionButton
+var _con_curve_option: OptionButton
+var _cap_curve_option: OptionButton
+var _max_actions_slider: HSlider
+var _max_actions_label: Label
+var _preview_label: Label
 var _player_rows: Array[Dictionary] = []
 var _start_button: Button
 var _container: VBoxContainer
@@ -189,13 +195,33 @@ func _build_ui() -> void:
 	_lone_castle_check = _add_check_row("Lone Castle = 0 pts", false)
 	_cursor_captured_check = _add_check_row("Cursor on Owned Cells", false)
 
-	# Score curve preview
+	# Scoring curves
 	_add_spacer(4)
-	var preview_lbl := Label.new()
-	preview_lbl.text = _get_score_preview()
-	preview_lbl.add_theme_font_size_override("font_size", 11)
-	preview_lbl.add_theme_color_override("font_color", Color(0.6, 0.7, 0.6))
-	_container.add_child(preview_lbl)
+	var curves_header := Label.new()
+	curves_header.text = "Scoring Curves"
+	curves_header.add_theme_font_size_override("font_size", 14)
+	curves_header.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	_container.add_child(curves_header)
+
+	_adj_curve_option = _add_curve_row("Adjacency", 0)  # POW2 default
+	_con_curve_option = _add_curve_row("Contagion", 1)   # COUNT default
+	_cap_curve_option = _add_curve_row("Capture", 3)     # SQUARE default
+
+	# Max actions
+	var ma_row := _add_slider_row("Max Actions", 0, 200, 0)
+	_max_actions_slider = ma_row["slider"]
+	_max_actions_label = ma_row["value_label"]
+	_max_actions_slider.step = 5
+	_max_actions_slider.value_changed.connect(func(v: float) -> void:
+		_max_actions_label.text = "Unlimited" if int(v) == 0 else "%d" % int(v))
+	_max_actions_label.text = "Unlimited"
+
+	# Score preview (updates when curves change)
+	_preview_label = Label.new()
+	_preview_label.add_theme_font_size_override("font_size", 11)
+	_preview_label.add_theme_color_override("font_color", Color(0.6, 0.7, 0.6))
+	_container.add_child(_preview_label)
+	_update_score_preview()
 
 	# Volume
 	var vol_row := _add_slider_row("Volume", 0, 100, 80)
@@ -384,6 +410,40 @@ func _update_max_castles_default() -> void:
 	_max_castles_label.text = "%d (of %d)" % [mc, grid * grid]
 
 
+func _add_curve_row(label_text: String, default_idx: int) -> OptionButton:
+	var row := HBoxContainer.new()
+	_container.add_child(row)
+	var lbl := Label.new()
+	lbl.text = label_text + ": "
+	lbl.add_theme_font_size_override("font_size", 14)
+	lbl.custom_minimum_size.x = 180
+	row.add_child(lbl)
+	var opt := OptionButton.new()
+	opt.add_item("Power of Two (1,2,4,8..)", 0)
+	opt.add_item("Count (1,2,3,4..)", 1)
+	opt.add_item("Fibonacci (1,2,3,5..)", 2)
+	opt.add_item("Square (1,4,9,16..)", 3)
+	opt.selected = default_idx
+	opt.custom_minimum_size.x = 230
+	opt.item_selected.connect(func(_i: int) -> void: _update_score_preview())
+	row.add_child(opt)
+	return opt
+
+
+func _update_score_preview() -> void:
+	if _preview_label == null:
+		return
+	var adj := ScorerConfig.new()
+	adj.curve = _adj_curve_option.selected as CKEnums.CurveType
+	var con := ScorerConfig.new()
+	con.curve = _con_curve_option.selected as CKEnums.CurveType
+	var cap := ScorerConfig.new()
+	cap.curve = _cap_curve_option.selected as CKEnums.CurveType
+	cap.multiplier = 1.2
+	_preview_label.text = "Preview n=1..5:  Adj: %s  Con: %s  Cap: %s" % [
+		str(adj.preview(5)), str(con.preview(5)), str(cap.preview(5))]
+
+
 func _get_score_preview() -> String:
 	var c := GameConfig.new()
 	var adj := c.adjacency_scorer.preview(5)
@@ -406,6 +466,11 @@ func _on_start_pressed() -> void:
 	config.scoring_mode = _scoring_mode_option.selected as CKEnums.ScoringMode
 	config.lone_castle_scores_zero = _lone_castle_check.button_pressed
 	config.cursor_select_captured = _cursor_captured_check.button_pressed
+
+	config.max_actions = int(_max_actions_slider.value)
+	config.adjacency_scorer.curve = _adj_curve_option.selected as CKEnums.CurveType
+	config.contagion_scorer.curve = _con_curve_option.selected as CKEnums.CurveType
+	config.capture_scorer.curve = _cap_curve_option.selected as CKEnums.CurveType
 
 	var speed_idx := _speed_option.selected
 	config.apply_speed_preset(speed_idx as CKEnums.SpeedPreset)
