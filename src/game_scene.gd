@@ -1,6 +1,6 @@
 ## Main game scene — config screen → match → results → loop.
 ## Wires ConfigScreen, MatchFlow, BoardRenderer, HUD, and input.
-extends Node2D
+extends Control
 
 var _match_flow: MatchFlow
 var _renderer: BoardRenderer
