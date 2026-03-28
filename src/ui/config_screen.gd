@@ -189,6 +189,14 @@ func _build_ui() -> void:
 	_lone_castle_check = _add_check_row("Lone Castle = 0 pts", false)
 	_cursor_captured_check = _add_check_row("Cursor on Owned Cells", false)
 
+	# Score curve preview
+	_add_spacer(4)
+	var preview_lbl := Label.new()
+	preview_lbl.text = _get_score_preview()
+	preview_lbl.add_theme_font_size_override("font_size", 11)
+	preview_lbl.add_theme_color_override("font_color", Color(0.6, 0.7, 0.6))
+	_container.add_child(preview_lbl)
+
 	# Coming Soon section
 	_add_spacer(6)
 	var cs_label := Label.new()
@@ -346,6 +354,15 @@ func _update_max_castles_default() -> void:
 	var mc := GameConfig.calc_default_max_castles(grid, players)
 	_max_castles_slider.value = mc
 	_max_castles_label.text = "%d (of %d)" % [mc, grid * grid]
+
+
+func _get_score_preview() -> String:
+	var c := GameConfig.new()
+	var adj := c.adjacency_scorer.preview(5)
+	var con := c.contagion_scorer.preview(5)
+	var cap := c.capture_scorer.preview(5)
+	return "Score preview (n=1..5):  Adjacency: %s  |  Contagion: %s  |  Capture: %s" % [
+		str(adj), str(con), str(cap)]
 
 
 func _on_start_pressed() -> void:

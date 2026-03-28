@@ -26,6 +26,7 @@ const CASTLE_SPRITE_NAMES: Array[String] = [
 var _castle_textures: Array[Texture2D] = []
 var _castle_empty_texture: Texture2D
 var _cursor_texture: Texture2D
+var _gem_textures: Array[Texture2D] = []
 var _use_sprites: bool = false
 
 var _board: BoardState
@@ -36,6 +37,7 @@ var _grid_origin := Vector2.ZERO
 var _cell_rects: Array[ColorRect] = []
 var _cell_sprites: Array[Sprite2D] = []
 var _cell_labels: Array[Label] = []
+var _cell_gem_containers: Array[Node2D] = []
 var _cursor_rect: ColorRect
 var _cursor_border: ReferenceRect
 var _cursor_sprite: Sprite2D
@@ -126,6 +128,15 @@ func _load_textures() -> void:
 		if ResourceLoader.exists(cursor_path):
 			_cursor_texture = load(cursor_path)
 
+		# Load gem sprites for contagion display
+		_gem_textures.clear()
+		for color_name: String in CASTLE_SPRITE_NAMES:
+			var gem_path := "res://images/6x6 Gem %s.png" % color_name
+			if ResourceLoader.exists(gem_path):
+				_gem_textures.append(load(gem_path))
+			else:
+				_gem_textures.append(null)
+
 
 func _build_grid() -> void:
 	# Clear any existing children
@@ -134,6 +145,7 @@ func _build_grid() -> void:
 	_cell_rects.clear()
 	_cell_sprites.clear()
 	_cell_labels.clear()
+	_cell_gem_containers.clear()
 
 	var sprite_scale := float(_cell_px) / SPRITE_BASE_SIZE if _use_sprites else 1.0
 
@@ -171,6 +183,12 @@ func _build_grid() -> void:
 		lbl.add_theme_color_override("font_color", Color.WHITE)
 		add_child(lbl)
 		_cell_labels.append(lbl)
+
+		# Gem container for contagion display
+		var gem_node := Node2D.new()
+		gem_node.position = pos
+		add_child(gem_node)
+		_cell_gem_containers.append(gem_node)
 
 	# Cursor — bright border that extends beyond cell + overlay
 	var border_pad := maxi(4, _cell_px / 8)
@@ -304,15 +322,74 @@ func _update_cells() -> void:
 			elif owner < PLAYER_COLORS.size():
 				_cell_rects[i].color = PLAYER_COLORS[owner]
 
-		# Contagion labels
+		# Contagion display
 		var cont: Dictionary = _board.cells_contagion[i]
-		if cont.is_empty():
-			_cell_labels[i].text = ""
+		_update_cell_contagion(i, cont)
+
+
+## Gem positions around the cell edges (offsets from cell top-left, up to 8 players).
+func _get_gem_positions() -> Array[Vector2]:
+	var s := _cell_px
+	var g := maxi(8, _cell_px / 6)  # gem display size
+	var margin := 2
+	return [
+		Vector2(margin, margin),                      # top-left
+		Vector2(s - g - margin, margin),              # top-right
+		Vector2(margin, s - g - margin),              # bottom-left
+		Vector2(s - g - margin, s - g - margin),      # bottom-right
+		Vector2(s / 2 - g / 2, margin),               # top-center
+		Vector2(s / 2 - g / 2, s - g - margin),       # bottom-center
+		Vector2(margin, s / 2 - g / 2),               # left-center
+		Vector2(s - g - margin, s / 2 - g / 2),       # right-center
+	]
+
+
+func _update_cell_contagion(cell_idx: int, cont: Dictionary) -> void:
+	var gem_container: Node2D = _cell_gem_containers[cell_idx]
+
+	# Clear existing gem sprites
+	for child in gem_container.get_children():
+		child.queue_free()
+
+	if cont.is_empty():
+		_cell_labels[cell_idx].text = ""
+		return
+
+	var gem_size := maxi(8, _cell_px / 6)
+	var positions := _get_gem_positions()
+	var pos_idx := 0
+
+	# Show gems + count for each player with contagion
+	var label_parts: PackedStringArray = PackedStringArray()
+	for p_id: int in cont:
+		var level: int = cont[p_id]
+		if level <= 0:
+			continue
+
+		# Place gem sprite if we have the texture
+		if _use_sprites and p_id < _gem_textures.size() and _gem_textures[p_id] != null and pos_idx < positions.size():
+			var gem_spr := Sprite2D.new()
+			gem_spr.texture = _gem_textures[p_id]
+			gem_spr.centered = false
+			gem_spr.position = positions[pos_idx]
+			gem_spr.scale = Vector2(float(gem_size) / 24.0, float(gem_size) / 24.0)
+			gem_container.add_child(gem_spr)
+
+			# Level count label next to gem
+			if level > 1:
+				var lvl_lbl := Label.new()
+				lvl_lbl.text = str(level)
+				lvl_lbl.position = positions[pos_idx] + Vector2(gem_size + 1, -2)
+				lvl_lbl.add_theme_font_size_override("font_size", clampi(gem_size - 2, 6, 12))
+				lvl_lbl.add_theme_color_override("font_color", PLAYER_COLORS[p_id] if p_id < PLAYER_COLORS.size() else Color.WHITE)
+				gem_container.add_child(lvl_lbl)
+
+			pos_idx += 1
 		else:
-			var parts: PackedStringArray = PackedStringArray()
-			for p_id: int in cont:
-				parts.append("%d:%d" % [p_id, cont[p_id]])
-			_cell_labels[i].text = "/".join(parts)
+			label_parts.append("%d:%d" % [p_id, level])
+
+	# Fallback text for overflow or missing gems
+	_cell_labels[cell_idx].text = "/".join(label_parts)
 
 
 func _animate_event(ev: Dictionary) -> void:

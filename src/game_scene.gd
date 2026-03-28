@@ -129,22 +129,56 @@ func _check_input() -> void:
 	if _match_flow.turn_director.state != TurnDirector.State.ACTIVE:
 		return
 
+	# Keyboard input
 	for key: int in KEY_BINDINGS:
 		if Input.is_key_pressed(key):
 			var binding: Dictionary = KEY_BINDINGS[key]
 			var player: int = binding["player"]
 			var dir: int = binding["dir"]
-
-			# Only accept input from human players
 			if player not in _human_players:
 				continue
-
-			# If tap is disabled and this is a tap, skip
 			if dir == -1 and not _match_flow.config.allow_tap:
 				continue
-
 			_do_action(player, dir)
 			return
+
+	# Gamepad input — each connected gamepad maps to a human player
+	_check_gamepad_input()
+
+
+const STICK_DEADZONE := 0.5
+
+func _check_gamepad_input() -> void:
+	var pads := Input.get_connected_joypads()
+	for pad_idx: int in pads:
+		# Map gamepad index to the nth human player
+		if pad_idx >= _human_players.size():
+			break
+		var player: int = _human_players[pad_idx]
+
+		# D-pad / left stick directions
+		if Input.is_joy_button_pressed(pad_idx, JOY_BUTTON_DPAD_UP) \
+				or Input.get_joy_axis(pad_idx, JOY_AXIS_LEFT_Y) < -STICK_DEADZONE:
+			_do_action(player, CKEnums.Direction.UP)
+			return
+		if Input.is_joy_button_pressed(pad_idx, JOY_BUTTON_DPAD_DOWN) \
+				or Input.get_joy_axis(pad_idx, JOY_AXIS_LEFT_Y) > STICK_DEADZONE:
+			_do_action(player, CKEnums.Direction.DOWN)
+			return
+		if Input.is_joy_button_pressed(pad_idx, JOY_BUTTON_DPAD_LEFT) \
+				or Input.get_joy_axis(pad_idx, JOY_AXIS_LEFT_X) < -STICK_DEADZONE:
+			_do_action(player, CKEnums.Direction.LEFT)
+			return
+		if Input.is_joy_button_pressed(pad_idx, JOY_BUTTON_DPAD_RIGHT) \
+				or Input.get_joy_axis(pad_idx, JOY_AXIS_LEFT_X) > STICK_DEADZONE:
+			_do_action(player, CKEnums.Direction.RIGHT)
+			return
+
+		# Face button A/Cross = tap
+		if Input.is_joy_button_pressed(pad_idx, JOY_BUTTON_A):
+			if _match_flow.config.allow_tap:
+				_do_action(player, -1)
+				return
 
 
 func _do_action(player: int, direction: int) -> void:
