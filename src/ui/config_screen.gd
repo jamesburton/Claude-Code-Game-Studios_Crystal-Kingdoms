@@ -24,6 +24,7 @@ var _threshold_slider: HSlider
 var _threshold_label: Label
 var _time_slider: HSlider
 var _time_label: Label
+var _max_castles_slider: HSlider
 var _max_castles_label: Label
 var _allow_tap_check: CheckBox
 var _player_rows: Array[Dictionary] = []
@@ -67,7 +68,7 @@ func _build_ui() -> void:
 	_grid_size_label = grid_row["value_label"]
 	_grid_size_slider.value_changed.connect(func(v: float) -> void:
 		_grid_size_label.text = "%dx%d" % [int(v), int(v)]
-		_update_max_castles_label())
+		_update_max_castles_default())
 
 	# Capture threshold
 	var thresh_row := _add_slider_row("Capture Threshold", 1, 10, 3)
@@ -117,18 +118,17 @@ func _build_ui() -> void:
 	_allow_tap_check.text = "Yes (directional-only when off)"
 	tap_row.add_child(_allow_tap_check)
 
-	# Max castles display
+	# Max castles slider
 	_add_spacer(4)
-	var mc_row := HBoxContainer.new()
-	_container.add_child(mc_row)
-	var mc_lbl := Label.new()
-	mc_lbl.text = "Max Castles/Player: "
-	mc_lbl.add_theme_font_size_override("font_size", 15)
-	mc_lbl.custom_minimum_size.x = 180
-	mc_row.add_child(mc_lbl)
-	_max_castles_label = Label.new()
-	_max_castles_label.add_theme_font_size_override("font_size", 15)
-	mc_row.add_child(_max_castles_label)
+	var mc_row := _add_slider_row("Max Castles", 0, 144, 0)
+	_max_castles_slider = mc_row["slider"]
+	_max_castles_label = mc_row["value_label"]
+	_max_castles_slider.value_changed.connect(func(v: float) -> void:
+		if int(v) == 0:
+			_max_castles_label.text = "Unlimited"
+		else:
+			var grid := int(_grid_size_slider.value)
+			_max_castles_label.text = "%d (of %d)" % [int(v), grid * grid])
 
 	# Player count
 	_add_spacer(8)
@@ -150,7 +150,7 @@ func _build_ui() -> void:
 		_player_rows.append(row)
 
 	_on_player_count_changed(2)
-	_update_max_castles_label()
+	_update_max_castles_default()
 
 	# Start button
 	_add_spacer(10)
@@ -254,14 +254,17 @@ func _on_player_count_changed(value: float) -> void:
 	_player_count_label.text = "%d" % count
 	for i in range(8):
 		_player_rows[i]["row"].visible = i < count
+	_update_max_castles_default()
 	_update_max_castles_label()
 
 
-func _update_max_castles_label() -> void:
+func _update_max_castles_default() -> void:
 	var grid := int(_grid_size_slider.value)
 	var players := int(_player_count_slider.value)
+	_max_castles_slider.max_value = grid * grid
 	var mc := GameConfig.calc_default_max_castles(grid, players)
-	_max_castles_label.text = "%d (of %d cells)" % [mc, grid * grid]
+	_max_castles_slider.value = mc
+	_max_castles_label.text = "%d (of %d)" % [mc, grid * grid]
 
 
 func _on_start_pressed() -> void:
@@ -272,7 +275,7 @@ func _on_start_pressed() -> void:
 	config.player_count = int(_player_count_slider.value)
 	config.wrap_around = true
 	config.allow_tap = _allow_tap_check.button_pressed
-	config.max_castles = GameConfig.calc_default_max_castles(config.grid_size, config.player_count)
+	config.max_castles = int(_max_castles_slider.value)
 
 	var speed_idx := _speed_option.selected
 	config.apply_speed_preset(speed_idx as CKEnums.SpeedPreset)

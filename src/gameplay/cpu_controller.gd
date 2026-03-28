@@ -52,6 +52,12 @@ func tick(delta: float) -> Dictionary:
 		return {}
 
 	_active = false
+
+	# Skip chance: CPU sometimes deliberately doesn't act
+	# Easy CPUs skip randomly; Hard CPUs skip strategically (evaluated in _decide_action)
+	if difficulty.skip_chance > 0 and _rng.randf() < difficulty.skip_chance:
+		return {}  # Let cursor pass — maybe another player or next cursor is better
+
 	var action := _decide_action()
 	return action
 
@@ -71,6 +77,16 @@ func _decide_action() -> Dictionary:
 	for dir_i in range(4):
 		var score := _score_action(_pending_cursor_index, dir_i)
 		options.append({"dir": dir_i, "score": score})
+
+	# Find best score
+	var best_score: int = options[0]["score"]
+	for opt: Dictionary in options:
+		if opt["score"] > best_score:
+			best_score = opt["score"]
+
+	# Hard CPUs with threat_awareness: skip if best option is poor (strategic pass)
+	if difficulty.threat_awareness and best_score <= 0:
+		return {}  # Nothing worth acting on — let cursor pass
 
 	# Select action based on strategic_bias
 	var chosen: Dictionary

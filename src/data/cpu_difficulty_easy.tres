@@ -7,6 +7,7 @@ script = ExtResource("1")
 reaction_min = 1.5
 reaction_max = 3.5
 strategic_bias = 0.3
+skip_chance = 0.15
 chain_awareness = false
 threat_awareness = false
 near_capture_bonus = 5

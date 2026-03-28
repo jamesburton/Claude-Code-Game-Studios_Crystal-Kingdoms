@@ -56,14 +56,16 @@ func _init() -> void:
 
 	# S1-10: Integration — TurnDirector + scripted match
 	_test_turn_director_spawn()
-	_test_turn_director_grace_period()
 	_test_turn_director_claim()
+	_test_turn_director_instant_claim()
 	_test_turn_director_expire()
 	_test_scripted_match()
 
 	# CPU Controller
 	_test_cpu_reacts_after_delay()
 	_test_cpu_does_nothing_if_cursor_gone()
+	_test_cpu_skip_chance()
+	_test_cpu_hard_strategic_skip()
 	_test_cpu_scores_cells_correctly()
 
 	# Match Flow
@@ -547,14 +549,14 @@ func _test_turn_director_spawn() -> void:
 	var td = TurnDirector.new(c, b, r, 12345)
 	td.init_players(2)
 	td.start()
-	td.tick(0.1)  # spawn → APPEARING
+	td.tick(0.1)
+	_assert_eq(td.state, TurnDirector.State.ACTIVE, "cursor immediately active")
 	_assert(b.cursor_index >= 0, "cursor placed")
 	_assert(b.cursor_active, "cursor active flag")
-	td.tick(0.5)  # past grace period → ACTIVE
-	_assert_eq(td.state, TurnDirector.State.ACTIVE, "cursor is active after grace")
 
-func _test_turn_director_grace_period() -> void:
-	print("TurnDirector: grace period...")
+
+func _test_turn_director_instant_claim() -> void:
+	print("TurnDirector: cursor instantly claimable...")
 	var c = _make_config()
 	c.cursor_spawn_delay_min = 0.0
 	c.cursor_spawn_delay_max = 0.0
@@ -563,15 +565,11 @@ func _test_turn_director_grace_period() -> void:
 	var td = TurnDirector.new(c, b, r, 12345)
 	td.init_players(2)
 	td.start()
-	td.tick(0.1)  # triggers spawn
-	_assert_eq(td.state, TurnDirector.State.APPEARING, "cursor in grace period")
-	_assert(b.cursor_active, "cursor visible during grace")
-	# Action during grace period should be rejected
+	td.tick(0.1)  # spawn
+	_assert_eq(td.state, TurnDirector.State.ACTIVE, "active immediately")
+	# Should be claimable right away — no grace period
 	var events = td.submit_action(0, -1)
-	_assert(events.is_empty(), "action rejected during grace")
-	# After grace period, should be claimable
-	td.tick(0.5)
-	_assert_eq(td.state, TurnDirector.State.ACTIVE, "cursor now active")
+	_assert(not events.is_empty(), "action accepted immediately on spawn")
 
 
 func _test_turn_director_claim() -> void:
@@ -692,6 +690,42 @@ func _test_cpu_does_nothing_if_cursor_gone() -> void:
 	cpu.on_cursor_gone()
 	var action = cpu.tick(2.0)
 	_assert(action.is_empty(), "no action after cursor gone")
+
+
+func _test_cpu_skip_chance() -> void:
+	print("CpuController: skip chance...")
+	var c = _make_config()
+	var b = _make_board(c)
+	var diff = CpuDifficulty.new()
+	diff.reaction_min = 0.0
+	diff.reaction_max = 0.0
+	diff.skip_chance = 1.0  # Always skip
+	var cpu = CpuController.new(0, diff, c, b, 12345)
+	cpu.on_cursor_spawned(28)
+	var action = cpu.tick(0.1)
+	_assert(action.is_empty(), "CPU with 100% skip chance does nothing")
+
+
+func _test_cpu_hard_strategic_skip() -> void:
+	print("CpuController: hard strategic skip on bad position...")
+	var c = _make_config()
+	var b = _make_board(c)
+	# All cells around cursor owned by the CPU → only option is self-destroy (score <= 0)
+	b.cells_owner[28] = 0  # cursor cell owned by CPU
+	b.cells_owner[27] = 0
+	b.cells_owner[29] = 0
+	b.cells_owner[20] = 0
+	b.cells_owner[36] = 0
+	var diff = CpuDifficulty.new()
+	diff.reaction_min = 0.0
+	diff.reaction_max = 0.0
+	diff.skip_chance = 0.0
+	diff.strategic_bias = 0.9
+	diff.threat_awareness = true  # Hard CPU: skips when best score <= 0
+	var cpu = CpuController.new(0, diff, c, b, 12345)
+	cpu.on_cursor_spawned(28)
+	var action = cpu.tick(0.1)
+	_assert(action.is_empty(), "Hard CPU skips when only self-destroy available")
 
 
 func _test_cpu_scores_cells_correctly() -> void:
