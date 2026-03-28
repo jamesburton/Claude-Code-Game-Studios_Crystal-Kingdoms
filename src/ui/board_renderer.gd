@@ -19,14 +19,25 @@ const PLAYER_COLORS: Array[Color] = [
 	Color(0.9, 0.3, 0.7),   # Magenta
 ]
 
+const CASTLE_SPRITE_NAMES: Array[String] = [
+	"Blue", "Red", "Green", "Orange", "Yellow", "Purple", "Cyan", "Magenta"
+]
+
+var _castle_textures: Array[Texture2D] = []
+var _castle_empty_texture: Texture2D
+var _cursor_texture: Texture2D
+var _use_sprites: bool = false
+
 var _board: BoardState
 var _grid_size: int
 var _cell_px: int
 var _grid_origin := Vector2.ZERO
 
 var _cell_rects: Array[ColorRect] = []
+var _cell_sprites: Array[Sprite2D] = []
 var _cell_labels: Array[Label] = []
 var _cursor_rect: ColorRect
+var _cursor_sprite: Sprite2D
 var _cursor_pulse: float = 0.0
 
 var _anim_queue: Array[Dictionary] = []
@@ -49,7 +60,26 @@ func setup(board: BoardState, chain_delay: float, viewport_size: Vector2) -> voi
 	var total := _cell_px * _grid_size + CELL_GAP * (_grid_size - 1)
 	_grid_origin = Vector2((viewport_size.x - total) / 2.0, 60)
 
+	_load_textures()
 	_build_grid()
+
+
+func _load_textures() -> void:
+	_castle_textures.clear()
+	# Try loading castle sprites
+	var empty_path := "res://images/Basic Castle Start.png"
+	if ResourceLoader.exists(empty_path):
+		_castle_empty_texture = load(empty_path)
+		_use_sprites = true
+		for color_name: String in CASTLE_SPRITE_NAMES:
+			var path := "res://images/Basic Castle Start %s.png" % color_name
+			if ResourceLoader.exists(path):
+				_castle_textures.append(load(path))
+			else:
+				_castle_textures.append(_castle_empty_texture)
+		var cursor_path := "res://images/Cursor 64x64.png"
+		if ResourceLoader.exists(cursor_path):
+			_cursor_texture = load(cursor_path)
 
 
 func _build_grid() -> void:
@@ -57,7 +87,10 @@ func _build_grid() -> void:
 	for child in get_children():
 		child.queue_free()
 	_cell_rects.clear()
+	_cell_sprites.clear()
 	_cell_labels.clear()
+
+	var sprite_scale := _cell_px / 64.0 if _use_sprites else 1.0
 
 	for i in range(_grid_size * _grid_size):
 		var row := i / _grid_size
@@ -65,6 +98,7 @@ func _build_grid() -> void:
 		var pos := _grid_origin + Vector2(
 			col * (_cell_px + CELL_GAP), row * (_cell_px + CELL_GAP))
 
+		# Background rect (used for flash animation and fallback)
 		var rect := ColorRect.new()
 		rect.size = Vector2(_cell_px, _cell_px)
 		rect.position = pos
@@ -72,6 +106,18 @@ func _build_grid() -> void:
 		add_child(rect)
 		_cell_rects.append(rect)
 
+		# Castle sprite overlay
+		var spr := Sprite2D.new()
+		spr.centered = false
+		spr.position = pos
+		spr.scale = Vector2(sprite_scale, sprite_scale)
+		if _use_sprites and _castle_empty_texture:
+			spr.texture = _castle_empty_texture
+		spr.visible = _use_sprites
+		add_child(spr)
+		_cell_sprites.append(spr)
+
+		# Contagion label
 		var lbl := Label.new()
 		lbl.position = pos + Vector2(4, _cell_px - 18)
 		lbl.size = Vector2(_cell_px - 8, 18)
@@ -81,12 +127,23 @@ func _build_grid() -> void:
 		add_child(lbl)
 		_cell_labels.append(lbl)
 
+	# Cursor
 	_cursor_rect = ColorRect.new()
 	_cursor_rect.size = Vector2(_cell_px, _cell_px)
 	_cursor_rect.color = COLOR_CURSOR
 	_cursor_rect.visible = false
 	_cursor_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_cursor_rect)
+
+	if _use_sprites and _cursor_texture:
+		_cursor_sprite = Sprite2D.new()
+		_cursor_sprite.centered = false
+		_cursor_sprite.texture = _cursor_texture
+		_cursor_sprite.scale = Vector2(sprite_scale, sprite_scale)
+		_cursor_sprite.visible = false
+		add_child(_cursor_sprite)
+	else:
+		_cursor_sprite = null
 
 	_popup_container = Node2D.new()
 	add_child(_popup_container)
@@ -99,12 +156,21 @@ func _process(delta: float) -> void:
 	# Cursor pulse
 	if _board.cursor_active and _board.cursor_index >= 0:
 		_cursor_pulse += delta * 4.0
-		_cursor_rect.visible = true
-		_cursor_rect.position = _cell_pos(_board.cursor_index)
-		_cursor_rect.color = COLOR_CURSOR * (0.6 + 0.4 * sin(_cursor_pulse))
-		_cursor_rect.color.a = 0.7 + 0.3 * sin(_cursor_pulse)
+		var cursor_pos := _cell_pos(_board.cursor_index)
+		if _cursor_sprite:
+			_cursor_sprite.visible = true
+			_cursor_sprite.position = cursor_pos
+			_cursor_sprite.modulate.a = 0.6 + 0.4 * sin(_cursor_pulse)
+			_cursor_rect.visible = false
+		else:
+			_cursor_rect.visible = true
+			_cursor_rect.position = cursor_pos
+			_cursor_rect.color = COLOR_CURSOR * (0.6 + 0.4 * sin(_cursor_pulse))
+			_cursor_rect.color.a = 0.7 + 0.3 * sin(_cursor_pulse)
 	else:
 		_cursor_rect.visible = false
+		if _cursor_sprite:
+			_cursor_sprite.visible = false
 
 	# Animation queue
 	if _anim_queue.size() > 0:
@@ -147,11 +213,22 @@ func _cell_pos(index: int) -> Vector2:
 func _update_cells() -> void:
 	for i in range(_grid_size * _grid_size):
 		var owner: int = _board.cells_owner[i]
-		if owner == -1:
-			_cell_rects[i].color = COLOR_EMPTY
-		elif owner < PLAYER_COLORS.size():
-			_cell_rects[i].color = PLAYER_COLORS[owner]
 
+		# Update sprite texture
+		if _use_sprites and i < _cell_sprites.size():
+			if owner == -1:
+				_cell_sprites[i].texture = _castle_empty_texture
+			elif owner < _castle_textures.size():
+				_cell_sprites[i].texture = _castle_textures[owner]
+
+		# Update background color (visible when sprites not loaded, also used for flash)
+		if not _use_sprites:
+			if owner == -1:
+				_cell_rects[i].color = COLOR_EMPTY
+			elif owner < PLAYER_COLORS.size():
+				_cell_rects[i].color = PLAYER_COLORS[owner]
+
+		# Contagion labels
 		var cont: Dictionary = _board.cells_contagion[i]
 		if cont.is_empty():
 			_cell_labels[i].text = ""
