@@ -7,6 +7,7 @@ signal animation_complete()
 
 const CELL_GAP := 4
 const COLOR_EMPTY := Color(0.25, 0.25, 0.3)
+const COLOR_BLOCKED := Color(0.1, 0.1, 0.12)
 const COLOR_CURSOR := Color(1.0, 1.0, 0.2, 0.8)
 const PLAYER_COLORS: Array[Color] = [
 	Color(0.2, 0.5, 1.0),   # Blue
@@ -352,16 +353,26 @@ func _cell_pos(index: int) -> Vector2:
 
 func _update_cells() -> void:
 	for i in range(_grid_size * _grid_size):
+		var is_blocked: bool = _board.is_blocked(i)
 		var owner: int = _board.cells_owner[i]
+
+		if is_blocked:
+			# Blocked cell — dark, no sprite, no labels
+			_cell_rects[i].color = COLOR_BLOCKED
+			if _use_sprites and i < _cell_sprites.size():
+				_cell_sprites[i].visible = false
+			_cell_labels[i].text = ""
+			continue
 
 		# Update sprite texture
 		if _use_sprites and i < _cell_sprites.size():
+			_cell_sprites[i].visible = true
 			if owner == -1:
 				_cell_sprites[i].texture = _castle_empty_texture
 			elif owner < _castle_textures.size():
 				_cell_sprites[i].texture = _castle_textures[owner]
 
-		# Update background color (visible when sprites not loaded, also used for flash)
+		# Update background color
 		if not _use_sprites:
 			if owner == -1:
 				_cell_rects[i].color = COLOR_EMPTY
@@ -372,8 +383,7 @@ func _update_cells() -> void:
 		var cont: Dictionary = _board.cells_contagion[i]
 		_update_cell_contagion(i, cont)
 
-		# Bonus castle marker (star symbol in top-right)
-		# Handled via contagion label fallback — add star to label if cell is bonus
+		# Bonus castle marker
 		if i in _bonus_cells and owner != -1:
 			_cell_labels[i].text = _cell_labels[i].text + " *" if _cell_labels[i].text != "" else "*"
 

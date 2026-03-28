@@ -24,6 +24,7 @@ var _threshold_slider: HSlider
 var _threshold_label: Label
 var _time_slider: HSlider
 var _time_label: Label
+var _shape_option: OptionButton
 var _max_castles_slider: HSlider
 var _max_castles_label: Label
 var _winning_score_slider: HSlider
@@ -102,6 +103,25 @@ func _build_ui() -> void:
 	_grid_size_slider.value_changed.connect(func(v: float) -> void:
 		_grid_size_label.text = "%dx%d" % [int(v), int(v)]
 		_update_max_castles_default())
+
+	# Board shape
+	_add_spacer(2)
+	var shape_row := HBoxContainer.new()
+	_container.add_child(shape_row)
+	var shape_lbl := Label.new()
+	shape_lbl.text = "Board Shape: "
+	shape_lbl.add_theme_font_size_override("font_size", 15)
+	shape_lbl.custom_minimum_size.x = 180
+	shape_row.add_child(shape_lbl)
+	_shape_option = OptionButton.new()
+	_shape_option.add_item("Rectangle", 0)
+	_shape_option.add_item("Diamond", 1)
+	_shape_option.add_item("Hourglass", 2)
+	_shape_option.add_item("Cross", 3)
+	_shape_option.add_item("Ring", 4)
+	_shape_option.selected = 0
+	_shape_option.custom_minimum_size.x = 180
+	shape_row.add_child(_shape_option)
 
 	# Capture threshold
 	var thresh_row := _add_slider_row("Capture Threshold", 1, 10, 3)
@@ -467,6 +487,7 @@ func _on_start_pressed() -> void:
 	config.lone_castle_scores_zero = _lone_castle_check.button_pressed
 	config.cursor_select_captured = _cursor_captured_check.button_pressed
 
+	config.board_shape = _shape_option.selected as CKEnums.BoardShape
 	config.max_actions = int(_max_actions_slider.value)
 	config.adjacency_scorer.curve = _adj_curve_option.selected as CKEnums.CurveType
 	config.contagion_scorer.curve = _con_curve_option.selected as CKEnums.CurveType

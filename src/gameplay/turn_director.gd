@@ -18,6 +18,9 @@ var _board: BoardState
 var _rules: RulesEngine
 var _rng: RandomNumberGenerator
 
+## History of all actions for replay.
+var turn_history: Array = []
+
 var _spawn_timer: float = 0.0
 var _cursor_timer: float = 0.0
 var _waiting_for_animation: bool = false
@@ -119,6 +122,13 @@ func submit_action(player_id: int, direction: int) -> Array[Dictionary]:
 	# Resolve action
 	var events := _rules.resolve_action(player_id, claimed_index, direction)
 	action_resolved.emit(events)
+
+	# Record for replay
+	turn_history.append({
+		"cursor": claimed_index,
+		"player": player_id,
+		"dir": direction,
+	})
 
 	return events
 

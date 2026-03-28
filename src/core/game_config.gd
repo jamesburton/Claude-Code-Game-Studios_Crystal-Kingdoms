@@ -37,6 +37,9 @@ extends Resource
 @export var max_actions: int = 0
 @export var max_castles: int = 0
 
+# --- Board Shape ---
+@export var board_shape: CKEnums.BoardShape = CKEnums.BoardShape.RECTANGLE
+
 # --- Input ---
 @export var allow_tap: bool = true  ## When false, only directional swipes work (no fire/tap)
 

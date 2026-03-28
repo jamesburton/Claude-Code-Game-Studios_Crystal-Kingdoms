@@ -22,7 +22,7 @@ func resolve_action(actor_id: int, cursor_index: int, direction: int) -> Array[D
 	var current := cursor_index
 	if direction >= 0:
 		var neighbor := _board.get_neighbor(cursor_index, direction as CKEnums.Direction)
-		if neighbor == -1:
+		if neighbor == -1 or _board.is_blocked(neighbor):
 			return events
 		current = neighbor
 
@@ -43,6 +43,12 @@ func resolve_action(actor_id: int, cursor_index: int, direction: int) -> Array[D
 					CKEnums.EventType.CHAIN_ENDED, current, actor_id, 0, position))
 				break
 			visited[current] = true
+
+		# Skip blocked cells — chain ends
+		if _board.is_blocked(current):
+			events.append(_make_event(
+				CKEnums.EventType.CHAIN_ENDED, current, actor_id, 0, position))
+			break
 
 		var ev := _resolve_cell(actor_id, current, position)
 		events.append(ev)

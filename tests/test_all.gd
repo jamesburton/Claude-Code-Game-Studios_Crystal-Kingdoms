@@ -74,6 +74,12 @@ func _init() -> void:
 	_test_match_flow_time_limit()
 	_test_match_flow_cpu_match()
 
+	# Board shapes & blocked cells
+	_test_blocked_cells()
+	_test_chain_stops_at_blocked()
+	_test_diamond_shape()
+	_test_empty_cells_excludes_blocked()
+
 	# GameConfig
 	_test_default_max_castles()
 	_test_default_timing()
@@ -827,6 +833,52 @@ func _test_match_flow_cpu_match() -> void:
 # ============================================================
 # GAME CONFIG TESTS
 # ============================================================
+
+func _test_blocked_cells() -> void:
+	print("BoardState: blocked cells...")
+	var c = _make_config()
+	var b = _make_board(c)
+	b.cells_blocked[28] = true
+	_assert(b.is_blocked(28), "cell 28 is blocked")
+	_assert(!b.is_blocked(27), "cell 27 is not blocked")
+
+
+func _test_chain_stops_at_blocked() -> void:
+	print("RulesEngine: chain stops at blocked cell...")
+	var c = _make_config()
+	var b = _make_board(c)
+	b.cells_owner[29] = 1  # enemy
+	b.cells_blocked[30] = true  # blocked — chain should stop
+	var r = _make_rules(c, b)
+	var events = r.resolve_action(0, 28, CKEnums.Direction.RIGHT)
+	_assert_eq(events[0]["type"], CKEnums.EventType.INCREMENT_CONTAGION, "29 = contagion")
+	# Next cell is blocked → chain_ended
+	var last = events[events.size() - 1]
+	_assert_eq(last["type"], CKEnums.EventType.CHAIN_ENDED, "chain stopped at blocked")
+
+
+func _test_diamond_shape() -> void:
+	print("BoardState: diamond shape blocks corners...")
+	var c = _make_config()
+	c.grid_size = 6
+	c.board_shape = CKEnums.BoardShape.DIAMOND
+	var b = _make_board(c)
+	_assert(b.is_blocked(0), "top-left corner blocked in diamond")
+	_assert(b.is_blocked(5), "top-right corner blocked in diamond")
+	_assert(!b.is_blocked(b.coords_to_index(2, 2)), "center not blocked")
+	_assert(b.get_playable_count() < 36, "fewer playable cells than 6x6")
+
+
+func _test_empty_cells_excludes_blocked() -> void:
+	print("BoardState: get_empty_cells excludes blocked...")
+	var c = _make_config()
+	c.grid_size = 4
+	var b = _make_board(c)
+	b.cells_blocked[0] = true
+	b.cells_blocked[1] = true
+	_assert_eq(b.get_empty_cells().size(), 14, "16 - 2 blocked = 14 empty")
+	_assert_eq(b.get_playable_count(), 14, "14 playable")
+
 
 func _test_default_max_castles() -> void:
 	print("GameConfig: default max_castles...")
