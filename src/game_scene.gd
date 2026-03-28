@@ -87,6 +87,7 @@ func _show_main_menu() -> void:
 	menu.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(menu)
 	menu.play_pressed.connect(func() -> void: _fade_to(_show_play_screen))
+	menu.online_pressed.connect(func() -> void: _fade_to(_show_lobby))
 	menu.options_pressed.connect(func() -> void: _fade_to(_show_options))
 	menu.quit_pressed.connect(func() -> void: get_tree().quit())
 
@@ -107,6 +108,22 @@ func _show_play_screen() -> void:
 	back.custom_minimum_size = Vector2(80, 35)
 	back.pressed.connect(func() -> void: _fade_to(_show_main_menu))
 	add_child(back)
+
+
+func _show_lobby() -> void:
+	_clear_scene()
+	var lobby := LobbyScreen.new()
+	lobby.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(lobby)
+	lobby.back_pressed.connect(func() -> void: _fade_to(_show_main_menu))
+	lobby.match_ready.connect(func(server: GameServer, config: GameConfig) -> void:
+		# For now, start a local match with the server's player count
+		_config = config
+		_player_setup.clear()
+		for i in range(config.player_count):
+			_player_setup.append({"player_id": i, "name": "Player %d" % (i + 1),
+				"is_cpu": false, "difficulty": 0})
+		_fade_to(_start_match))
 
 
 func _show_options() -> void:

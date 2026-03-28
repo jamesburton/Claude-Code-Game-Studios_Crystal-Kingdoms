@@ -4,6 +4,7 @@ class_name MainMenu
 extends Control
 
 signal play_pressed()
+signal online_pressed()
 signal options_pressed()
 signal quit_pressed()
 
@@ -67,6 +68,12 @@ func _build_ui() -> void:
 	var play_btn := _make_button("Play", 24)
 	play_btn.pressed.connect(func() -> void: play_pressed.emit())
 	btn_container.add_child(play_btn)
+
+	_add_btn_spacer(btn_container)
+
+	var online_btn := _make_button("Online (LAN)", 24)
+	online_btn.pressed.connect(func() -> void: online_pressed.emit())
+	btn_container.add_child(online_btn)
 
 	_add_btn_spacer(btn_container)
 
