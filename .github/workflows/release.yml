@@ -1,0 +1,107 @@
+name: Release — Build & Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - platform: windows
+            export_preset: "Windows Desktop"
+            artifact: CrystalKingdoms-Windows
+            extension: .exe
+          - platform: linux
+            export_preset: "Linux"
+            artifact: CrystalKingdoms-Linux
+            extension: .x86_64
+          - platform: web
+            export_preset: "Web"
+            artifact: CrystalKingdoms-Web
+            extension: .html
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.6.1
+          use-dotnet: false
+          include-templates: true
+
+      - name: Import project
+        run: godot --headless --import --path .
+
+      - name: Run tests
+        run: godot --headless --path . -s tests/test_all.gd
+
+      - name: Create build directory
+        run: mkdir -p build/${{ matrix.platform }}
+
+      - name: Export ${{ matrix.platform }}
+        run: |
+          godot --headless --path . --export-release "${{ matrix.export_preset }}" \
+            build/${{ matrix.platform }}/CrystalKingdoms${{ matrix.extension }}
+
+      - name: Package artifact
+        run: |
+          cd build/${{ matrix.platform }}
+          zip -r ../../${{ matrix.artifact }}-${{ github.ref_name }}.zip .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}-${{ github.ref_name }}.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            CHANGES=$(git log --pretty=format:"- %s" HEAD)
+          else
+            CHANGES=$(git log --pretty=format:"- %s" ${PREV_TAG}..HEAD)
+          fi
+          echo "changes<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Crystal Kingdoms ${{ github.ref_name }}
+          body: |
+            ## Crystal Kingdoms ${{ github.ref_name }}
+
+            ### Changes
+            ${{ steps.changelog.outputs.changes }}
+
+            ### Downloads
+            - **Windows**: CrystalKingdoms-Windows-${{ github.ref_name }}.zip
+            - **Linux**: CrystalKingdoms-Linux-${{ github.ref_name }}.zip
+            - **Web**: CrystalKingdoms-Web-${{ github.ref_name }}.zip
+          files: |
+            artifacts/**/*.zip
+          draft: false
+          prerelease: false
