@@ -16,6 +16,7 @@ var _tutorial_panel: Control
 var _pause_panel: Control
 var _paused: bool = false
 var _countdown_active: bool = false
+var _transition_rect: ColorRect
 
 # Keyboard binding map: key → {player, direction}
 const KEY_BINDINGS: Dictionary = {
@@ -46,12 +47,35 @@ func _ready() -> void:
 
 # === FLOW MANAGEMENT ===
 
+func _fade_to(callback: Callable) -> void:
+	if _transition_rect == null:
+		_transition_rect = ColorRect.new()
+		_transition_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_transition_rect.color = Color(0, 0, 0, 0)
+		_transition_rect.z_index = 200
+		_transition_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_transition_rect)
+
+	_transition_rect.color.a = 0.0
+	_transition_rect.mouse_filter = Control.MOUSE_FILTER_STOP
+	var tw := create_tween()
+	tw.tween_property(_transition_rect, "color:a", 1.0, 0.2)
+	tw.tween_callback(func() -> void:
+		callback.call()
+		if _transition_rect:
+			_transition_rect.reparent(self)  # keep on top after scene clear
+			var tw2 := create_tween()
+			tw2.tween_property(_transition_rect, "color:a", 0.0, 0.2)
+			tw2.tween_callback(func() -> void:
+				_transition_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE))
+
+
 func _show_intro() -> void:
 	_clear_scene()
 	var intro := StudioIntro.new()
 	intro.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(intro)
-	intro.finished.connect(_show_main_menu)
+	intro.finished.connect(func() -> void: _fade_to(_show_main_menu))
 
 
 func _show_main_menu() -> void:
@@ -62,8 +86,8 @@ func _show_main_menu() -> void:
 	var menu := MainMenu.new()
 	menu.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(menu)
-	menu.play_pressed.connect(_show_play_screen)
-	menu.options_pressed.connect(_show_options)
+	menu.play_pressed.connect(func() -> void: _fade_to(_show_play_screen))
+	menu.options_pressed.connect(func() -> void: _fade_to(_show_options))
 	menu.quit_pressed.connect(func() -> void: get_tree().quit())
 
 
@@ -81,7 +105,7 @@ func _show_play_screen() -> void:
 	back.text = "Back"
 	back.position = Vector2(20, 20)
 	back.custom_minimum_size = Vector2(80, 35)
-	back.pressed.connect(_show_main_menu)
+	back.pressed.connect(func() -> void: _fade_to(_show_main_menu))
 	add_child(back)
 
 
@@ -286,14 +310,20 @@ func _show_countdown() -> void:
 
 	var tw := create_tween()
 	lbl.text = "3"
+	tw.tween_callback(func() -> void: if _sound: _sound.play("countdown"))
 	tw.tween_interval(0.6)
-	tw.tween_callback(func() -> void: lbl.text = "2")
+	tw.tween_callback(func() -> void:
+		lbl.text = "2"
+		if _sound: _sound.play("countdown"))
 	tw.tween_interval(0.6)
-	tw.tween_callback(func() -> void: lbl.text = "1")
+	tw.tween_callback(func() -> void:
+		lbl.text = "1"
+		if _sound: _sound.play("countdown"))
 	tw.tween_interval(0.6)
 	tw.tween_callback(func() -> void:
 		lbl.text = "GO!"
-		lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3)))
+		lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
+		if _sound: _sound.play("countdown_go"))
 	tw.tween_interval(0.4)
 	tw.tween_callback(func() -> void:
 		lbl.queue_free()
@@ -345,7 +375,7 @@ func _pause() -> void:
 	menu_btn.add_theme_font_size_override("font_size", 20)
 	menu_btn.pressed.connect(func() -> void:
 		_unpause()
-		_show_main_menu())
+		_fade_to(_show_main_menu))
 	menu.add_child(menu_btn)
 
 
@@ -365,11 +395,11 @@ func _clear_scene() -> void:
 	if _renderer:
 		if _renderer.animation_complete.is_connected(_on_animation_complete):
 			_renderer.animation_complete.disconnect(_on_animation_complete)
-	# Keep _music — it's persistent
-	var keep_music := _music
+	# Keep persistent nodes
 	for child in get_children():
-		if child != keep_music:
-			child.queue_free()
+		if child == _music or child == _transition_rect:
+			continue
+		child.queue_free()
 	_match_flow = null
 	_renderer = null
 	_hud = null
@@ -392,12 +422,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	match event.keycode:
 		KEY_R:
 			if _in_match and _match_flow and _match_flow.state == MatchFlow.State.COMPLETE:
-				_start_match()
+				_fade_to(_start_match)
 		KEY_ESCAPE:
 			if _paused:
 				_unpause()
 			elif _in_match and _match_flow and _match_flow.state == MatchFlow.State.COMPLETE:
-				_show_main_menu()
+				_fade_to(_show_main_menu)
 			elif _in_match and _match_flow and _match_flow.state == MatchFlow.State.PLAYING:
 				_pause()
 		KEY_F11:

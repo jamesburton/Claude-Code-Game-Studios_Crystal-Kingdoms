@@ -206,3 +206,21 @@ func _show_end_screen(summary: Dictionary) -> void:
 	hint.add_theme_font_size_override("font_size", 18)
 	hint.add_theme_color_override("font_color", Color(0.8, 0.8, 0.2))
 	_end_panel.add_child(hint)
+
+	# Victory particles
+	if winner_id >= 0:
+		var win_color: Color = PLAYER_COLORS[winner_id] if winner_id < PLAYER_COLORS.size() else Color.WHITE
+		for i in range(30):
+			var p := ColorRect.new()
+			var sz := randf_range(4, 10)
+			p.size = Vector2(sz, sz)
+			p.color = win_color if i % 2 == 0 else Color(1, 1, 0.5)
+			p.position = Vector2(vp.x / 2, vp.y / 2)
+			_end_panel.add_child(p)
+			var angle := randf() * TAU
+			var dist := randf_range(80, 250)
+			var target := Vector2(vp.x / 2 + cos(angle) * dist, vp.y / 2 + sin(angle) * dist - 50)
+			var tw := create_tween()
+			tw.tween_property(p, "position", target, randf_range(0.5, 1.2))
+			tw.parallel().tween_property(p, "modulate:a", 0.0, randf_range(0.8, 1.5))
+			tw.tween_callback(p.queue_free)

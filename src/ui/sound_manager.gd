@@ -37,6 +37,18 @@ func play(sfx_name: String) -> void:
 			_play_tone(440.0, 0.04, 0.2)
 		"match_end":
 			_play_two_tone(523.0, 784.0, 0.3, 0.7)
+		"ui_hover":
+			_play_tone(600.0, 0.03, 0.15)
+		"ui_click":
+			_play_tone(800.0, 0.05, 0.25)
+		"ui_back":
+			_play_tone(400.0, 0.06, 0.2)
+		"countdown":
+			_play_tone(440.0, 0.1, 0.4)
+		"countdown_go":
+			_play_two_tone(440.0, 880.0, 0.2, 0.5)
+		"victory":
+			_play_two_tone(523.0, 784.0, 0.4, 0.7)
 
 
 func set_enabled(val: bool) -> void:

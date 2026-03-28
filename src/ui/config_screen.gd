@@ -156,6 +156,7 @@ func _build_ui() -> void:
 
 	_add_spacer(6)
 
+	_add_section_header("Match Settings")
 	# Grid size
 	var grid_row := _add_slider_row("Grid Size", 6, 12, 8)
 	_grid_size_slider = grid_row["slider"]
@@ -252,7 +253,7 @@ func _build_ui() -> void:
 		_winning_score_label.text = "Off" if int(v) == 0 else "First to %d" % int(v))
 	_winning_score_label.text = "Off"
 
-	# Wrap around
+	_add_section_header("Rules")
 	_wrap_check = _add_check_row("Wrap Around", true)
 
 	# Scoring mode
@@ -275,13 +276,7 @@ func _build_ui() -> void:
 	_lone_castle_check = _add_check_row("Lone Castle = 0 pts", false)
 	_cursor_captured_check = _add_check_row("Cursor on Owned Cells", false)
 
-	# Scoring curves
-	_add_spacer(4)
-	var curves_header := Label.new()
-	curves_header.text = "Scoring Curves"
-	curves_header.add_theme_font_size_override("font_size", 14)
-	curves_header.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	_container.add_child(curves_header)
+	_add_section_header("Scoring Curves")
 
 	_adj_curve_option = _add_curve_row("Adjacency", 0)  # POW2 default
 	_con_curve_option = _add_curve_row("Contagion", 1)   # COUNT default
@@ -331,13 +326,7 @@ func _build_ui() -> void:
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED))
 	fs_row.add_child(fs_check)
 
-	# Special cells
-	_add_spacer(4)
-	var special_header := Label.new()
-	special_header.text = "Special Cells"
-	special_header.add_theme_font_size_override("font_size", 14)
-	special_header.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	_container.add_child(special_header)
+	_add_section_header("Special Cells")
 
 	_pre_placed_check = _add_check_row("Pre-placed Castles", false)
 	_skip_blanks_check = _add_check_row("Skip Blanks in Chains", true)
@@ -386,8 +375,8 @@ func _build_ui() -> void:
 	cs_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
 	_container.add_child(cs_label)
 
-	# Player count
-	_add_spacer(8)
+	_add_section_header("Players")
+
 	var pcount_row := _add_slider_row("Players", 2, 8, 2)
 	_player_count_slider = pcount_row["slider"]
 	_player_count_label = pcount_row["value_label"]
@@ -426,6 +415,29 @@ func _build_ui() -> void:
 	controls_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	controls_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_container.add_child(controls_lbl)
+
+
+func _add_section_header(text: String) -> void:
+	_add_spacer(8)
+	var panel := PanelContainer.new()
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.15, 0.15, 0.2, 0.6)
+	sb.corner_radius_top_left = 4
+	sb.corner_radius_top_right = 4
+	sb.corner_radius_bottom_left = 4
+	sb.corner_radius_bottom_right = 4
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	sb.content_margin_top = 4
+	sb.content_margin_bottom = 4
+	panel.add_theme_stylebox_override("panel", sb)
+	_container.add_child(panel)
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 16)
+	lbl.add_theme_color_override("font_color", Color(0.85, 0.8, 0.4))
+	panel.add_child(lbl)
+	_add_spacer(2)
 
 
 func _add_check_row(label_text: String, default_val: bool) -> CheckBox:
