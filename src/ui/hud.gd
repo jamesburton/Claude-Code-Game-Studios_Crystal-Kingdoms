@@ -28,9 +28,9 @@ func setup(match_flow: MatchFlow) -> void:
 
 
 func _build_ui() -> void:
-	# Timer
+	# Timer (right-aligned)
 	_timer_label = Label.new()
-	_timer_label.position = Vector2(1100, 10)
+	_timer_label.position = Vector2(get_viewport().get_visible_rect().size.x - 180, 10)
 	_timer_label.add_theme_font_size_override("font_size", 24)
 	_timer_label.add_theme_color_override("font_color", Color.WHITE)
 	add_child(_timer_label)
@@ -47,7 +47,7 @@ func _build_ui() -> void:
 
 	# Info label
 	_info_label = Label.new()
-	_info_label.position = Vector2(300, 690)
+	_info_label.position = Vector2(300, get_viewport().get_visible_rect().size.y - 30)
 	_info_label.add_theme_font_size_override("font_size", 13)
 	_info_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 	_info_label.text = "P1: WASD/Space | P2: Arrows/Enter | Escape: settings"

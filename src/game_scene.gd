@@ -97,7 +97,7 @@ func _start_match() -> void:
 	_renderer.setup(
 		_match_flow.board,
 		_match_flow.config.chain_step_delay,
-		Vector2(1280, 720))
+		get_viewport().get_visible_rect().size)
 	_renderer.animation_complete.connect(_on_animation_complete)
 
 	# Connect action events from MatchFlow (handles both human + CPU)

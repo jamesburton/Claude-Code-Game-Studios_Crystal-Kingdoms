@@ -49,20 +49,61 @@ var _chain_step_delay: float = 0.2
 var _popup_container: Node2D
 
 
-## Initialize the renderer with board state and viewport dimensions.
-func setup(board: BoardState, chain_delay: float, viewport_size: Vector2) -> void:
+const SPRITE_BASE_SIZE := 256  ## Base texture size for castle sprites
+const HUD_TOP_MARGIN := 50  ## Space reserved for top HUD bar
+const HUD_BOTTOM_MARGIN := 30  ## Space reserved for bottom info
+const HUD_SIDE_MARGIN := 20  ## Minimum side padding
+
+
+## Initialize the renderer with board state.
+func setup(board: BoardState, chain_delay: float, _viewport_size: Vector2) -> void:
 	_board = board
 	_grid_size = board.size
 	_chain_step_delay = chain_delay
 
-	# Calculate cell size to fit viewport
-	var available := minf(viewport_size.x - 40, viewport_size.y - 120)
-	_cell_px = int(available / _grid_size) - CELL_GAP
-	var total := _cell_px * _grid_size + CELL_GAP * (_grid_size - 1)
-	_grid_origin = Vector2((viewport_size.x - total) / 2.0, 60)
-
 	_load_textures()
+	_recalculate_layout()
 	_build_grid()
+
+	# Listen for window resize
+	get_viewport().size_changed.connect(_on_viewport_resized)
+
+
+func _on_viewport_resized() -> void:
+	_recalculate_layout()
+	_rebuild_positions()
+
+
+func _recalculate_layout() -> void:
+	var vp_size := get_viewport().get_visible_rect().size
+	var available_w := vp_size.x - HUD_SIDE_MARGIN * 2
+	var available_h := vp_size.y - HUD_TOP_MARGIN - HUD_BOTTOM_MARGIN
+	var available := minf(available_w, available_h)
+	_cell_px = int(available / _grid_size) - CELL_GAP
+	_cell_px = maxi(_cell_px, 16)  # absolute minimum cell size
+	var total := _cell_px * _grid_size + CELL_GAP * (_grid_size - 1)
+	_grid_origin = Vector2(
+		(vp_size.x - total) / 2.0,
+		HUD_TOP_MARGIN + (available_h - total) / 2.0)
+
+
+func _rebuild_positions() -> void:
+	if _cell_rects.is_empty():
+		return
+	var sprite_scale := float(_cell_px) / SPRITE_BASE_SIZE
+	for i in range(_grid_size * _grid_size):
+		var pos := _cell_pos(i)
+		_cell_rects[i].size = Vector2(_cell_px, _cell_px)
+		_cell_rects[i].position = pos
+		if i < _cell_sprites.size():
+			_cell_sprites[i].position = pos
+			_cell_sprites[i].scale = Vector2(sprite_scale, sprite_scale)
+		if i < _cell_labels.size():
+			_cell_labels[i].position = pos + Vector2(4, _cell_px - 18)
+			_cell_labels[i].size = Vector2(_cell_px - 8, 18)
+	_cursor_rect.size = Vector2(_cell_px, _cell_px)
+	if _cursor_sprite:
+		_cursor_sprite.scale = Vector2(sprite_scale, sprite_scale)
 
 
 func _load_textures() -> void:
@@ -91,7 +132,7 @@ func _build_grid() -> void:
 	_cell_sprites.clear()
 	_cell_labels.clear()
 
-	var sprite_scale := _cell_px / 64.0 if _use_sprites else 1.0
+	var sprite_scale := float(_cell_px) / SPRITE_BASE_SIZE if _use_sprites else 1.0
 
 	for i in range(_grid_size * _grid_size):
 		var row := i / _grid_size
