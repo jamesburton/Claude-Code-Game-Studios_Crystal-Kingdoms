@@ -26,7 +26,13 @@ var _time_slider: HSlider
 var _time_label: Label
 var _max_castles_slider: HSlider
 var _max_castles_label: Label
+var _winning_score_slider: HSlider
+var _winning_score_label: Label
 var _allow_tap_check: CheckBox
+var _wrap_check: CheckBox
+var _scoring_mode_option: OptionButton
+var _lone_castle_check: CheckBox
+var _cursor_captured_check: CheckBox
 var _player_rows: Array[Dictionary] = []
 var _start_button: Button
 var _container: VBoxContainer
@@ -35,6 +41,27 @@ var _scroll: ScrollContainer
 
 func _ready() -> void:
 	_build_ui()
+	_load_saved_settings()
+
+
+func _load_saved_settings() -> void:
+	var config := SettingsManager.load_config()
+	if config == null:
+		return
+	_grid_size_slider.value = config.grid_size
+	_threshold_slider.value = config.capture_threshold
+	_time_slider.value = config.time_limit
+	_player_count_slider.value = config.player_count
+	_wrap_check.button_pressed = config.wrap_around
+	_allow_tap_check.button_pressed = config.allow_tap
+	_winning_score_slider.value = config.winning_score
+	_scoring_mode_option.selected = config.scoring_mode
+	_lone_castle_check.button_pressed = config.lone_castle_scores_zero
+	_cursor_captured_check.button_pressed = config.cursor_select_captured
+	# Max castles loaded after grid/player count so range is correct
+	_update_max_castles_default()
+	if config.max_castles > 0:
+		_max_castles_slider.value = config.max_castles
 
 
 func _build_ui() -> void:
@@ -130,6 +157,46 @@ func _build_ui() -> void:
 			var grid := int(_grid_size_slider.value)
 			_max_castles_label.text = "%d (of %d)" % [int(v), grid * grid])
 
+	# Winning score
+	var ws_row := _add_slider_row("Win Score", 0, 500, 0)
+	_winning_score_slider = ws_row["slider"]
+	_winning_score_label = ws_row["value_label"]
+	_winning_score_slider.step = 10
+	_winning_score_slider.value_changed.connect(func(v: float) -> void:
+		_winning_score_label.text = "Off" if int(v) == 0 else "First to %d" % int(v))
+	_winning_score_label.text = "Off"
+
+	# Wrap around
+	_wrap_check = _add_check_row("Wrap Around", true)
+
+	# Scoring mode
+	_add_spacer(4)
+	var sm_row := HBoxContainer.new()
+	_container.add_child(sm_row)
+	var sm_lbl := Label.new()
+	sm_lbl.text = "Scoring Mode: "
+	sm_lbl.add_theme_font_size_override("font_size", 15)
+	sm_lbl.custom_minimum_size.x = 180
+	sm_row.add_child(sm_lbl)
+	_scoring_mode_option = OptionButton.new()
+	_scoring_mode_option.add_item("Basic (all points)", 0)
+	_scoring_mode_option.add_item("Only Castles (no contagion pts)", 1)
+	_scoring_mode_option.selected = 0
+	_scoring_mode_option.custom_minimum_size.x = 250
+	sm_row.add_child(_scoring_mode_option)
+
+	# Advanced toggles
+	_lone_castle_check = _add_check_row("Lone Castle = 0 pts", false)
+	_cursor_captured_check = _add_check_row("Cursor on Owned Cells", false)
+
+	# Coming Soon section
+	_add_spacer(6)
+	var cs_label := Label.new()
+	cs_label.text = "Coming Soon: Danger Cells, Bonus Cells, Boosts, Board Shapes"
+	cs_label.add_theme_font_size_override("font_size", 12)
+	cs_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+	_container.add_child(cs_label)
+
 	# Player count
 	_add_spacer(8)
 	var pcount_row := _add_slider_row("Players", 2, 8, 2)
@@ -170,6 +237,21 @@ func _build_ui() -> void:
 	controls_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	controls_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_container.add_child(controls_lbl)
+
+
+func _add_check_row(label_text: String, default_val: bool) -> CheckBox:
+	_add_spacer(2)
+	var row := HBoxContainer.new()
+	_container.add_child(row)
+	var lbl := Label.new()
+	lbl.text = label_text + ": "
+	lbl.add_theme_font_size_override("font_size", 15)
+	lbl.custom_minimum_size.x = 180
+	row.add_child(lbl)
+	var cb := CheckBox.new()
+	cb.button_pressed = default_val
+	row.add_child(cb)
+	return cb
 
 
 func _add_spacer(height: int) -> void:
@@ -272,12 +354,19 @@ func _on_start_pressed() -> void:
 	config.capture_threshold = int(_threshold_slider.value)
 	config.time_limit = int(_time_slider.value)
 	config.player_count = int(_player_count_slider.value)
-	config.wrap_around = true
+	config.wrap_around = _wrap_check.button_pressed
 	config.allow_tap = _allow_tap_check.button_pressed
 	config.max_castles = int(_max_castles_slider.value)
+	config.winning_score = int(_winning_score_slider.value)
+	config.scoring_mode = _scoring_mode_option.selected as CKEnums.ScoringMode
+	config.lone_castle_scores_zero = _lone_castle_check.button_pressed
+	config.cursor_select_captured = _cursor_captured_check.button_pressed
 
 	var speed_idx := _speed_option.selected
 	config.apply_speed_preset(speed_idx as CKEnums.SpeedPreset)
+
+	# Save settings for next session
+	SettingsManager.save_config(config)
 
 	var setup: Array[Dictionary] = []
 	for i in range(config.player_count):

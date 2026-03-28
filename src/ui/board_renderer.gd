@@ -45,6 +45,9 @@ var _anim_queue: Array = []  # Untyped to avoid Array[Dictionary] assignment iss
 var _anim_timer: float = 0.0
 var _chain_step_delay: float = 0.2
 
+# Chain trail
+var _chain_line: Line2D
+
 # Popup container
 var _popup_container: Node2D
 
@@ -197,6 +200,15 @@ func _build_grid() -> void:
 	else:
 		_cursor_sprite = null
 
+	# Chain trail line
+	_chain_line = Line2D.new()
+	_chain_line.width = maxf(2.0, _cell_px / 10.0)
+	_chain_line.default_color = Color(1.0, 1.0, 0.3, 0.6)
+	_chain_line.joint_mode = Line2D.LINE_JOINT_ROUND
+	_chain_line.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	_chain_line.end_cap_mode = Line2D.LINE_CAP_ROUND
+	add_child(_chain_line)
+
 	_popup_container = Node2D.new()
 	add_child(_popup_container)
 
@@ -249,6 +261,7 @@ func _process(delta: float) -> void:
 ## Queue events for animation.
 func play_events(events: Array) -> void:
 	_anim_queue.clear()
+	_chain_line.clear_points()
 	for ev in events:
 		_anim_queue.append(ev)
 	_anim_timer = 0.0
@@ -305,7 +318,22 @@ func _update_cells() -> void:
 func _animate_event(ev: Dictionary) -> void:
 	var index: int = ev["grid_index"]
 	var actor: int = ev["actor_id"]
+	var ev_type: int = ev.get("type", -1)
 	var color: Color = PLAYER_COLORS[actor] if actor >= 0 and actor < PLAYER_COLORS.size() else Color.WHITE
+	var cell_center := _cell_pos(index) + Vector2(_cell_px / 2.0, _cell_px / 2.0)
+
+	# Chain trail — add point for each cell in the chain
+	if ev_type == CKEnums.EventType.CHAIN_ENDED:
+		# Fade out the chain line
+		if _chain_line.get_point_count() > 0:
+			var tw := create_tween()
+			tw.tween_property(_chain_line, "modulate:a", 0.0, 0.3)
+			tw.tween_callback(_chain_line.clear_points)
+			tw.tween_property(_chain_line, "modulate:a", 1.0, 0.0)
+		return
+	else:
+		_chain_line.add_point(cell_center)
+		_chain_line.default_color = Color(color, 0.6)
 
 	# Flash
 	var rect := _cell_rects[index]

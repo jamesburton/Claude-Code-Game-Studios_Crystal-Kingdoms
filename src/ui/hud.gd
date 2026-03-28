@@ -117,8 +117,8 @@ func _show_end_screen(summary: Dictionary) -> void:
 		var pid: int = r["player_id"]
 		var name: String = PLAYER_NAMES[pid] if pid < PLAYER_NAMES.size() else "P%d" % pid
 		var rank_label := Label.new()
-		rank_label.text = "%d. %s — %d pts, %d castles, %d captures" % [
-			i + 1, name, r["score"], r["castles"], r["total_captures"]]
+		rank_label.text = "%d. %s — %d pts | %d castles | %d captures | chain %d" % [
+			i + 1, name, r["score"], r["castles"], r["total_captures"], r["longest_chain"]]
 		rank_label.position = Vector2(400, y)
 		rank_label.add_theme_font_size_override("font_size", 20)
 		var color: Color = PLAYER_COLORS[pid] if pid < PLAYER_COLORS.size() else Color.WHITE

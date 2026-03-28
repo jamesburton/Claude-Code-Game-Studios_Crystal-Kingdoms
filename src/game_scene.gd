@@ -5,6 +5,7 @@ extends Control
 var _match_flow: MatchFlow
 var _renderer: BoardRenderer
 var _hud: GameHud
+var _sound: SoundManager
 var _config_screen: ConfigScreen
 var _config: GameConfig
 var _player_setup: Array[Dictionary] = []
@@ -100,8 +101,16 @@ func _start_match() -> void:
 		get_viewport().get_visible_rect().size)
 	_renderer.animation_complete.connect(_on_animation_complete)
 
-	# Connect action events from MatchFlow (handles both human + CPU)
+	# Connect signals
 	_match_flow.action_events.connect(_on_action_events)
+	_match_flow.match_ended.connect(func(_s: Dictionary) -> void:
+		if _sound: _sound.play("match_end"))
+	_match_flow.turn_director.cursor_spawned.connect(func(_i: int) -> void:
+		if _sound: _sound.play("cursor_spawn"))
+
+	# Sound
+	_sound = SoundManager.new()
+	add_child(_sound)
 
 	# HUD
 	_hud = GameHud.new()
@@ -146,6 +155,23 @@ func _do_action(player: int, direction: int) -> void:
 func _on_action_events(events: Array) -> void:
 	if _renderer:
 		_renderer.play_events(events)
+	if _sound and not events.is_empty():
+		# Play SFX for the first significant event
+		for ev: Dictionary in events:
+			var ev_type: int = ev.get("type", -1)
+			match ev_type:
+				CKEnums.EventType.CAPTURE_EMPTY:
+					_sound.play("capture_empty")
+					break
+				CKEnums.EventType.INCREMENT_CONTAGION:
+					_sound.play("contagion")
+					break
+				CKEnums.EventType.CAPTURE_CONTAGION:
+					_sound.play("capture_contagion")
+					break
+				CKEnums.EventType.DESTROY_OWN_CASTLE:
+					_sound.play("destroy")
+					break
 
 
 func _on_animation_complete() -> void:
@@ -166,6 +192,7 @@ func _clear_scene() -> void:
 	_match_flow = null
 	_renderer = null
 	_hud = null
+	_sound = null
 	_config_screen = null
 
 
