@@ -37,6 +37,7 @@ var _cell_rects: Array[ColorRect] = []
 var _cell_sprites: Array[Sprite2D] = []
 var _cell_labels: Array[Label] = []
 var _cursor_rect: ColorRect
+var _cursor_border: ReferenceRect
 var _cursor_sprite: Sprite2D
 var _cursor_pulse: float = 0.0
 
@@ -127,10 +128,20 @@ func _build_grid() -> void:
 		add_child(lbl)
 		_cell_labels.append(lbl)
 
-	# Cursor
+	# Cursor — bright border that extends beyond cell + overlay
+	var border_pad := maxi(4, _cell_px / 8)
+	_cursor_border = ReferenceRect.new()
+	_cursor_border.size = Vector2(_cell_px + border_pad * 2, _cell_px + border_pad * 2)
+	_cursor_border.border_color = Color(1.0, 1.0, 0.0)
+	_cursor_border.border_width = maxf(3.0, _cell_px / 12.0)
+	_cursor_border.editor_only = false
+	_cursor_border.visible = false
+	_cursor_border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_cursor_border)
+
 	_cursor_rect = ColorRect.new()
 	_cursor_rect.size = Vector2(_cell_px, _cell_px)
-	_cursor_rect.color = COLOR_CURSOR
+	_cursor_rect.color = Color(1.0, 1.0, 0.3, 0.5)
 	_cursor_rect.visible = false
 	_cursor_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_cursor_rect)
@@ -155,19 +166,28 @@ func _process(delta: float) -> void:
 
 	# Cursor pulse
 	if _board.cursor_active and _board.cursor_index >= 0:
-		_cursor_pulse += delta * 4.0
+		_cursor_pulse += delta * 6.0  # faster pulse for urgency
 		var cursor_pos := _cell_pos(_board.cursor_index)
+		var pulse_val := 0.7 + 0.3 * sin(_cursor_pulse)
+		var border_pad := maxi(4, _cell_px / 8)
+
+		# Bright pulsing border — always visible
+		_cursor_border.visible = true
+		_cursor_border.position = cursor_pos - Vector2(border_pad, border_pad)
+		_cursor_border.border_color = Color(1.0, 1.0, 0.0, pulse_val)
+
+		# Yellow overlay on the cell
+		_cursor_rect.visible = true
+		_cursor_rect.position = cursor_pos
+		_cursor_rect.color = Color(1.0, 1.0, 0.2, 0.3 + 0.2 * sin(_cursor_pulse))
+
+		# Sprite if available
 		if _cursor_sprite:
 			_cursor_sprite.visible = true
 			_cursor_sprite.position = cursor_pos
-			_cursor_sprite.modulate.a = 0.6 + 0.4 * sin(_cursor_pulse)
-			_cursor_rect.visible = false
-		else:
-			_cursor_rect.visible = true
-			_cursor_rect.position = cursor_pos
-			_cursor_rect.color = COLOR_CURSOR * (0.6 + 0.4 * sin(_cursor_pulse))
-			_cursor_rect.color.a = 0.7 + 0.3 * sin(_cursor_pulse)
+			_cursor_sprite.modulate = Color(1.0, 1.0, 1.0, pulse_val)
 	else:
+		_cursor_border.visible = false
 		_cursor_rect.visible = false
 		if _cursor_sprite:
 			_cursor_sprite.visible = false
