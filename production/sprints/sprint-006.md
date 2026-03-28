@@ -1,10 +1,10 @@
-# Sprint 6 — Replay Viewer, Online Foundation, Quality
+# Sprint 6 — Professional Polish, Menus, and Presentation
 
 ## Sprint Goal
-Complete the replay viewer for match review, lay the networking foundation for online multiplayer (LAN first), and address accumulated quality/UX debt.
+Transform Crystal Kingdoms from a functional game into a professional-feeling product: studio intro, main menu, options menu, preset modes, attract mode, backgrounds, music, responsive layout, and polished HUD.
 
 ## Velocity
-Sprints 1-5 delivered 60+ features across 2 sessions with 200 tests. Sprint 6 tackles deeper systems (networking, replay UI) that require more careful architecture.
+Sprints 1-5 delivered all gameplay features in 2 sessions. Sprint 6 focuses entirely on presentation and UX — no new gameplay mechanics.
 
 ## Capacity
 - Total sessions: 2-3 (estimated)
@@ -17,61 +17,68 @@ Sprints 1-5 delivered 60+ features across 2 sessions with 200 tests. Sprint 6 ta
 
 | ID | Task | System | Est. | Dependencies | Acceptance Criteria |
 |----|------|--------|------|-------------|-------------------|
-| S6-01 | Replay list screen | UI | S | None | List saved replays with timestamp, grid size, player count, scores; select to view; delete option |
-| S6-02 | Replay playback viewer | UI | M | S6-01 | Load replay, recreate board, step through turn_history with play/pause/step controls; show board state evolving |
-| S6-03 | Replay playback speed control | UI | S | S6-02 | Slider: 0.5x, 1x, 2x, 4x playback speed |
-| S6-04 | LAN WebSocket server (in-process) | Networking | M | None | GDScript WebSocket server runs in host's game process; broadcasts cursor spawns, accepts actions, sends authoritative events |
-| S6-05 | LAN client connection | Networking | M | S6-04 | Client connects to host via IP:port; receives cursor/events; sends actions |
-| S6-06 | LAN game lobby | UI | S | S6-04 | Host creates room, shows IP; clients join by entering IP; player list + ready status; host starts match |
+| S6-01 | Studio intro screen ("Fluffy Productions") | UI | S | None | 2-3s animated splash with studio name/logo, auto-advances to main menu; skippable |
+| S6-02 | Main menu screen | UI | M | S6-01 | Play / Options / Quit buttons; game title prominent; background artwork/animation |
+| S6-03 | Options menu (moved from config screen) | UI | S | S6-02 | Separate options screen: video (fullscreen, volume), gameplay (all current config options organized into sections) |
+| S6-04 | Quick-select preset modes | Config | S | S6-03 | Named presets: "Quick Match" (small grid, fast), "Strategic" (large grid, no tap, low max castles), "Party" (8 players, frantic), "Classic" (defaults); one-click apply |
+| S6-05 | User-saved option sets | Persistence | S | S6-03 | Save current settings as named preset to localStorage; load/delete saved presets; list in options |
+| S6-06 | Attract mode (idle demo) | UI | M | S6-02 | After 30s idle on main menu, starts CPU vs CPU match with showcase settings; "Press any key" overlay; cycles through board shapes |
+| S6-07 | Background artwork/patterns | UI | S | None | Subtle animated background for menu screens (particle field, gradient, or pattern); dark theme behind gameplay board |
+| S6-08 | Background music | Audio | M | None | Menu music track + gameplay music track; crossfade on transitions; separate volume from SFX |
+| S6-09 | Polished player score HUD | HUD | M | None | Card-style player panels with color bar, score, castles, rank badge; smooth reordering animation; compact mode for 5+ players |
+| S6-10 | Responsive portrait/landscape layout | UI | M | None | Board and HUD rearrange for portrait (scores above/below board) vs landscape (scores beside board); smooth transition on resize |
 
 ### Should Have
 
 | ID | Task | System | Est. | Dependencies | Acceptance Criteria |
 |----|------|--------|------|-------------|-------------------|
-| S6-07 | LAN discovery (UDP broadcast) | Networking | S | S6-04 | Host broadcasts presence on port 19736; clients show "LAN Games" list |
-| S6-08 | Network latency display | HUD | S | S6-05 | Show ping (ms) per player during online match |
-| S6-09 | Keyboard rebinding UI | Input System | M | None | Click-to-rebind per player slot in config; capture next key press |
-| S6-10 | Custom board editor | UI | M | None | Click cells to toggle blocked/unblocked; save/load as named presets |
-| S6-11 | Match statistics history | Persistence | S | None | Save per-match stats to user://stats.json; show win/loss record per config |
-| S6-12 | Shared gamepad presets | Input System | S | None | "D-pad + Buttons" and "Split Stick" 2-player-1-gamepad presets |
+| S6-11 | Menu transitions (fade/slide) | UI | S | S6-02 | Smooth transitions between intro → menu → options → game → results |
+| S6-12 | Title screen animation | UI | S | S6-02 | Game title with subtle animation (glow, crystal sparkle, or color cycle) |
+| S6-13 | Options categories (tabs/accordion) | UI | S | S6-03 | Options grouped: Match / Scoring / Players / Video+Audio; collapsible or tabbed |
+| S6-14 | Preset mode descriptions | Config | S | S6-04 | Each preset shows 1-line description of what it changes |
+| S6-15 | Attract mode feature showcase | UI | S | S6-06 | Rotate through: different board shapes, player counts, scoring modes between demo matches |
+| S6-16 | Pause menu visual polish | UI | S | None | Semi-transparent blur background; styled buttons matching menu theme |
 
 ### Nice to Have
 
 | ID | Task | System | Est. | Dependencies | Acceptance Criteria |
 |----|------|--------|------|-------------|-------------------|
-| S6-13 | Room codes for internet play | Networking | M | S6-04 | 6-char codes instead of IP; requires relay server or STUN |
-| S6-14 | Spectator mode for online | Networking | S | S6-05 | Join as observer, receive events, no input |
-| S6-15 | Chat/emotes during match | UI | S | S6-05 | Quick emote buttons (thumbs up, wow, gg) sent to all players |
-| S6-16 | Music system | Audio | M | None | Background music tracks; crossfade between menu/match; volume separate from SFX |
-| S6-17 | Accessibility: high contrast mode | UI | S | None | Toggle for high-contrast colors, larger text, thicker borders |
+| S6-17 | Animated crystal/gem decorations | UI | S | None | Small animated gems in menu corners and HUD borders |
+| S6-18 | Match countdown (3-2-1-Go!) | UI | S | None | Brief countdown before match starts, builds anticipation |
+| S6-19 | Victory celebration animation | UI | S | None | Particle burst + sound + animation when winner is shown |
+| S6-20 | Menu SFX (hover, click, transition) | Audio | S | None | Subtle UI sounds for button hover/press/transition |
 
-## Carryover from Sprint 5
+## Carryover from Previous Sprint Plan
 
-| Task | Reason | New Estimate |
-|------|--------|-------------|
-| S5-05 Replay playback viewer | UI not built yet | M (now S6-02) |
-| S5-06 Replay list screen | UI deferred | S (now S6-01) |
-| S5-12 Online leaderboard | Superseded by LAN multiplayer focus | Deferred |
-| S5-15 Keyboard rebinding | S (now S6-09) |
-| S5-16 Shared gamepad presets | S (now S6-12) |
+Networking (S6-04-06 from old plan) moved to Sprint 7. This sprint prioritizes presentation.
+
+| Task | Status |
+|------|--------|
+| LAN multiplayer | Moved to Sprint 7 |
+| Replay viewer UI | Moved to Sprint 7 |
+| Keyboard rebinding | Moved to Sprint 7 |
 
 ## Risks
 
 | Risk | Probability | Impact | Mitigation |
 |------|------------|--------|------------|
-| WebSocket in GDScript may have threading issues | Medium | High | Use Godot's built-in WebSocketMultiplayerPeer; test with 2+ clients locally |
-| Cursor claim racing over network needs careful timing | High | High | Server-authoritative: server decides claim winner by arrival order; client shows prediction |
-| Replay files from different versions may be incompatible | Low | Medium | Version field in replay JSON; validate on load |
-| LAN discovery blocked by firewall | Medium | Medium | Fall back to manual IP entry; document firewall requirements |
+| Background music generation quality | Medium | Medium | Use procedural music (arpeggiated chords) or source CC0 tracks |
+| Menu complexity getting unwieldy | Medium | Medium | Keep main menu simple (3 buttons); options behind sub-screen |
+| Portrait layout breaking board rendering | Medium | High | Test at 9:16, 3:4, 16:9 ratios; use anchors and containers |
+| Attract mode interfering with input | Low | Medium | Clear input state when returning from attract; stop demo match cleanly |
 
 ## Dependencies on External Factors
-- Network testing requires 2+ devices on same LAN (or localhost with multiple instances)
-- Internet play (S6-13) needs a relay/signaling server
+- Background music: procedural generation or CC0 audio tracks
+- No external services needed
 
 ## Definition of Done for this Sprint
-- [ ] All Must Have tasks (S6-01 through S6-06) completed
-- [ ] Replays can be saved, listed, loaded, and played back
-- [ ] Two game instances can play a match over LAN
-- [ ] Network play feels responsive (< 100ms perceived latency)
+- [ ] All Must Have tasks (S6-01 through S6-10) completed
+- [ ] Game launches: studio intro → main menu → play/options
+- [ ] Attract mode activates after 30s idle, returns cleanly
+- [ ] At least 4 named preset modes selectable
+- [ ] User can save/load custom named presets
+- [ ] Background music plays in menu and gameplay
+- [ ] HUD score panels look polished with rank indicators
+- [ ] Layout works in both landscape and portrait orientations
 - [ ] 200+ tests passing
-- [ ] Tagged as v1.5.0, deployed to GitHub Pages
+- [ ] Tagged as v1.5.0
