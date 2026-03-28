@@ -47,8 +47,11 @@ func resolve_action(actor_id: int, cursor_index: int, direction: int) -> Array[D
 		var ev := _resolve_cell(actor_id, current, position)
 		events.append(ev)
 
-		# Chain continues only on increment_contagion
-		if ev["type"] != CKEnums.EventType.INCREMENT_CONTAGION:
+		# Chain continues through contagion (increment or capture).
+		# Chain stops on: capture_empty, destroy_own_castle, chain_ended.
+		var ev_type: int = ev["type"]
+		if ev_type != CKEnums.EventType.INCREMENT_CONTAGION \
+				and ev_type != CKEnums.EventType.CAPTURE_CONTAGION:
 			break
 
 		# Tap = no chain

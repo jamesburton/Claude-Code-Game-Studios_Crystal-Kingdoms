@@ -50,7 +50,7 @@ func _build_ui() -> void:
 	_info_label.position = Vector2(300, 690)
 	_info_label.add_theme_font_size_override("font_size", 13)
 	_info_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	_info_label.text = "P1: WASD/Space | P2: Arrows/Enter | R: restart"
+	_info_label.text = "P1: WASD/Space | P2: Arrows/Enter | Escape: settings"
 	add_child(_info_label)
 
 
@@ -135,10 +135,10 @@ func _show_end_screen(summary: Dictionary) -> void:
 	dur_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	_end_panel.add_child(dur_label)
 
-	# Restart hint
+	# Restart/exit hints
 	var hint := Label.new()
-	hint.text = "Press R to restart"
-	hint.position = Vector2(520, y + 60)
+	hint.text = "R = Rematch  |  Escape = Change Settings"
+	hint.position = Vector2(420, y + 60)
 	hint.add_theme_font_size_override("font_size", 18)
 	hint.add_theme_color_override("font_color", Color(0.8, 0.8, 0.2))
 	_end_panel.add_child(hint)

@@ -9,6 +9,7 @@ var _config_screen: ConfigScreen
 var _config: GameConfig
 var _player_setup: Array[Dictionary] = []
 var _human_players: Array[int] = []
+var _in_match: bool = false
 
 # Keyboard binding map: key → {player, direction}
 # Direction -1 = tap, 0-3 = CKEnums.Direction
@@ -42,8 +43,10 @@ func _ready() -> void:
 
 func _show_config_screen() -> void:
 	_clear_scene()
+	_in_match = false
 	_config_screen = ConfigScreen.new()
 	_config_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_config_screen.size = get_viewport().get_visible_rect().size
 	add_child(_config_screen)
 	_config_screen.match_requested.connect(_on_match_requested)
 
@@ -56,6 +59,7 @@ func _on_match_requested(config: GameConfig, setup: Array[Dictionary]) -> void:
 
 func _start_match() -> void:
 	_clear_scene()
+	_in_match = true
 
 	# Determine which players are human
 	_human_players.clear()
@@ -111,10 +115,18 @@ func _check_input() -> void:
 		if Input.is_key_pressed(key):
 			var binding: Dictionary = KEY_BINDINGS[key]
 			var player: int = binding["player"]
+			var dir: int = binding["dir"]
+
 			# Only accept input from human players
-			if player in _human_players:
-				_do_action(player, binding["dir"])
-				return
+			if player not in _human_players:
+				continue
+
+			# If tap is disabled and this is a tap, skip
+			if dir == -1 and not _match_flow.config.allow_tap:
+				continue
+
+			_do_action(player, dir)
+			return
 
 
 func _do_action(player: int, direction: int) -> void:
@@ -144,10 +156,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	match event.keycode:
 		KEY_R:
-			if _match_flow and _match_flow.state == MatchFlow.State.COMPLETE:
-				_start_match()  # Rematch with same config
+			# Rematch with same config
+			if _in_match and _match_flow and _match_flow.state == MatchFlow.State.COMPLETE:
+				_start_match()
 		KEY_ESCAPE:
-			if _match_flow and _match_flow.state == MatchFlow.State.COMPLETE:
-				_show_config_screen()  # Back to config
-			elif _config_screen == null and _match_flow:
-				_show_config_screen()  # Quit match to config
+			# Back to config from match-end or during gameplay
+			if _in_match:
+				_show_config_screen()

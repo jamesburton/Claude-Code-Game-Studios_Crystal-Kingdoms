@@ -24,18 +24,21 @@ extends Resource
 @export var capture_threshold: int = 3
 
 # --- Timing ---
-@export var cursor_spawn_delay_min: float = 1.0
-@export var cursor_spawn_delay_max: float = 3.0
+@export var cursor_spawn_delay_min: float = 0.5
+@export var cursor_spawn_delay_max: float = 2.4
 @export var cursor_expire_time: float = 5.0
 @export var chain_step_delay: float = 0.2
 
 # --- Match End ---
-@export var time_limit: int = 180
+@export var time_limit: int = 90
 @export var winning_score: int = 0
 
 # --- Constraints ---
 @export var max_actions: int = 0
 @export var max_castles: int = 0
+
+# --- Input ---
+@export var allow_tap: bool = true  ## When false, only directional swipes work (no fire/tap)
 
 # --- Player Count ---
 @export var player_count: int = 2
@@ -85,8 +88,8 @@ func apply_speed_preset(preset: CKEnums.SpeedPreset) -> void:
 			cursor_expire_time = 8.0
 			chain_step_delay = 0.4
 		CKEnums.SpeedPreset.NORMAL:
-			cursor_spawn_delay_min = 1.0
-			cursor_spawn_delay_max = 3.0
+			cursor_spawn_delay_min = 0.5
+			cursor_spawn_delay_max = 2.4
 			cursor_expire_time = 5.0
 			chain_step_delay = 0.2
 		CKEnums.SpeedPreset.FAST:
@@ -99,6 +102,14 @@ func apply_speed_preset(preset: CKEnums.SpeedPreset) -> void:
 			cursor_spawn_delay_max = 1.0
 			cursor_expire_time = 2.0
 			chain_step_delay = 0.05
+
+
+## Calculate a sensible default max_castles: grid² / players * 1.15, rounded up.
+## Gives ~15% headroom before lock-out.
+static func calc_default_max_castles(grid: int, players: int) -> int:
+	if players <= 0:
+		return 0
+	return ceili(float(grid * grid) / float(players) * 1.15)
 
 
 ## Create an immutable snapshot for use during a match.

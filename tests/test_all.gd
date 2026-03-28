@@ -47,7 +47,7 @@ func _init() -> void:
 	_test_swipe_starts_adjacent()
 	_test_chain_through_enemies()
 	_test_chain_stops_on_capture_empty()
-	_test_chain_stops_on_capture_contagion()
+	_test_chain_continues_through_contagion_capture()
 	_test_chain_stops_on_self_destroy()
 	_test_chain_wraps()
 	_test_chain_no_wrap_edge()
@@ -72,6 +72,9 @@ func _init() -> void:
 	_test_match_flow_cpu_match()
 
 	# GameConfig
+	_test_default_max_castles()
+	_test_default_timing()
+	_test_allow_tap_config()
 	_test_speed_presets()
 	_test_config_lock()
 	_test_points_lost_calculation()
@@ -449,19 +452,21 @@ func _test_chain_stops_on_capture_empty() -> void:
 	_assert_eq(events[1]["type"], CKEnums.EventType.CAPTURE_EMPTY, "30 = capture, stops")
 	_assert_eq(events.size(), 2, "2 events total")
 
-func _test_chain_stops_on_capture_contagion() -> void:
-	print("RulesEngine: chain stops on contagion capture...")
+func _test_chain_continues_through_contagion_capture() -> void:
+	print("RulesEngine: chain continues through contagion capture...")
 	var c = _make_config()
 	c.capture_threshold = 2
 	var b = _make_board(c)
-	b.cells_owner[29] = 1
-	b.cells_owner[30] = 1
+	b.cells_owner[29] = 1  # enemy, no contagion
+	b.cells_owner[30] = 1  # enemy, 1 contagion → will capture
 	b.cells_contagion[30] = {0: 1}
+	# cell 31 is empty → chain stops here on capture_empty
 	var r = _make_rules(c, b)
 	var events = r.resolve_action(0, 28, CKEnums.Direction.RIGHT)
 	_assert_eq(events[0]["type"], CKEnums.EventType.INCREMENT_CONTAGION, "29 = increment")
-	_assert_eq(events[1]["type"], CKEnums.EventType.CAPTURE_CONTAGION, "30 = capture")
-	_assert_eq(events.size(), 2, "chain stopped")
+	_assert_eq(events[1]["type"], CKEnums.EventType.CAPTURE_CONTAGION, "30 = contagion capture")
+	_assert(events.size() >= 3, "chain continues past contagion capture")
+	_assert_eq(events[2]["type"], CKEnums.EventType.CAPTURE_EMPTY, "31 = empty capture, stops")
 
 func _test_chain_stops_on_self_destroy() -> void:
 	print("RulesEngine: chain stops on self-destroy...")
@@ -765,6 +770,32 @@ func _test_match_flow_cpu_match() -> void:
 # ============================================================
 # GAME CONFIG TESTS
 # ============================================================
+
+func _test_default_max_castles() -> void:
+	print("GameConfig: default max_castles...")
+	# 8x8 grid, 2 players: 64/2 * 1.15 = 36.8 → 37
+	_assert_eq(GameConfig.calc_default_max_castles(8, 2), 37, "8x8/2p = 37")
+	# 6x6 grid, 4 players: 36/4 * 1.15 = 10.35 → 11
+	_assert_eq(GameConfig.calc_default_max_castles(6, 4), 11, "6x6/4p = 11")
+	# 12x12 grid, 8 players: 144/8 * 1.15 = 20.7 → 21
+	_assert_eq(GameConfig.calc_default_max_castles(12, 8), 21, "12x12/8p = 21")
+
+
+func _test_default_timing() -> void:
+	print("GameConfig: default timing values...")
+	var c = GameConfig.new()
+	_assert_eq(c.cursor_spawn_delay_min, 0.5, "default spawn min = 0.5")
+	_assert_eq(c.cursor_spawn_delay_max, 2.4, "default spawn max = 2.4")
+	_assert_eq(c.time_limit, 90, "default time limit = 90s")
+
+
+func _test_allow_tap_config() -> void:
+	print("GameConfig: allow_tap default...")
+	var c = GameConfig.new()
+	_assert(c.allow_tap, "allow_tap default = true")
+	c.allow_tap = false
+	_assert(!c.allow_tap, "allow_tap can be set false")
+
 
 func _test_speed_presets() -> void:
 	print("GameConfig: speed presets...")
