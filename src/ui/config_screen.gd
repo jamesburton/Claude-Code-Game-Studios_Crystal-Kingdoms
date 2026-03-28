@@ -255,7 +255,6 @@ func _on_player_count_changed(value: float) -> void:
 	for i in range(8):
 		_player_rows[i]["row"].visible = i < count
 	_update_max_castles_default()
-	_update_max_castles_label()
 
 
 func _update_max_castles_default() -> void:
