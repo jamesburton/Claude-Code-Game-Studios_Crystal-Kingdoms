@@ -280,12 +280,7 @@ func _start_network_client_match(config_data: Dictionary) -> void:
 			_renderer.play_events(events)
 		# SFX for first event
 		if _sound and events.size() > 0:
-			var first_type: int = events[0].get("type", -1)
-			match first_type:
-				CKEnums.EventType.CAPTURE_EMPTY: _sound.play("capture_empty")
-				CKEnums.EventType.INCREMENT_CONTAGION: _sound.play("contagion")
-				CKEnums.EventType.CAPTURE_CONTAGION: _sound.play("capture_contagion")
-				CKEnums.EventType.DESTROY_OWN_CASTLE: _sound.play("destroy"))
+			_play_event_sfx(events[0].get("type", -1)))
 
 	_net_client.match_ended.connect(func(summary: Dictionary) -> void:
 		if _sound: _sound.play("match_end")
@@ -470,17 +465,20 @@ func _on_action_events(events: Array) -> void:
 		_renderer.play_events(events)
 		_renderer.set_bonus_cells(_match_flow.bonus_stacks)
 	if _sound and not events.is_empty():
-		for ev: Dictionary in events:
-			var ev_type: int = ev.get("type", -1)
-			match ev_type:
-				CKEnums.EventType.CAPTURE_EMPTY:
-					_sound.play("capture_empty"); break
-				CKEnums.EventType.INCREMENT_CONTAGION:
-					_sound.play("contagion"); break
-				CKEnums.EventType.CAPTURE_CONTAGION:
-					_sound.play("capture_contagion"); break
-				CKEnums.EventType.DESTROY_OWN_CASTLE:
-					_sound.play("destroy"); break
+		_play_event_sfx(events[0].get("type", -1))
+
+
+func _play_event_sfx(ev_type: int) -> void:
+	if not _sound:
+		return
+	if ev_type == CKEnums.EventType.CAPTURE_EMPTY:
+		_sound.play("capture_empty")
+	elif ev_type == CKEnums.EventType.INCREMENT_CONTAGION:
+		_sound.play("contagion")
+	elif ev_type == CKEnums.EventType.CAPTURE_CONTAGION:
+		_sound.play("capture_contagion")
+	elif ev_type == CKEnums.EventType.DESTROY_OWN_CASTLE:
+		_sound.play("destroy")
 
 
 func _on_animation_complete() -> void:
