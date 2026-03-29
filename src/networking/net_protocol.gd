@@ -15,6 +15,7 @@ const MSG_MATCH_END := "match_end"   ## Server → All: match over with summary
 const MSG_PING := "ping"             ## Client ↔ Server: latency measurement
 const MSG_PONG := "pong"
 const MSG_PLAYER_LEFT := "left"      ## Server → All: player disconnected
+const MSG_LATENCY_REPORT := "latency" ## Client → Server: reports measured RTT
 const MSG_ERROR := "error"           ## Server → Client: error message
 
 
@@ -71,3 +72,7 @@ static func ping_msg(client_time: float) -> Dictionary:
 
 static func pong_msg(client_time: float, server_time: float) -> Dictionary:
 	return {"type": MSG_PONG, "client_time": client_time, "server_time": server_time}
+
+
+static func latency_report_msg(rtt_ms: float) -> Dictionary:
+	return {"type": MSG_LATENCY_REPORT, "rtt": rtt_ms}

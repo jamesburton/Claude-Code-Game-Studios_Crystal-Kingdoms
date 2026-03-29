@@ -22,6 +22,15 @@ var _next_slot: int = 1  ## slot 0 is host
 var match_flow: MatchFlow
 var config: GameConfig
 
+## Latency tracking per peer (round-trip ms)
+var peer_latency: Dictionary = {}  ## {peer_id: float ms}
+
+## Action claim window: holds actions briefly to allow higher-latency
+## players' earlier actions to arrive before resolving.
+var _claim_window: float = 0.05  ## 50ms collection window
+var _claim_timer: float = -1.0
+var _pending_actions: Array = []  ## [{peer_id, slot, dir, client_time}]
+
 
 func start(port: int = 19735, p_host_name: String = "Host") -> Error:
 	_port = port
@@ -97,6 +106,32 @@ func _process(delta: float) -> void:
 		match_flow.tick(delta)
 		match_flow.on_animation_complete()  # Server doesn't animate
 
+		# Resolve claim window
+		if _claim_timer >= 0:
+			_claim_timer -= delta
+			if _claim_timer <= 0:
+				_resolve_claim_window()
+				_claim_timer = -1.0
+
+
+## Resolve pending actions: pick the one with the earliest adjusted timestamp.
+func _resolve_claim_window() -> void:
+	if _pending_actions.is_empty():
+		return
+	if match_flow == null or match_flow.state != MatchFlow.State.PLAYING:
+		_pending_actions.clear()
+		return
+
+	# Sort by adjusted_time — earliest action wins
+	_pending_actions.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a["adjusted_time"] < b["adjusted_time"])
+
+	# Submit only the winning action
+	var winner: Dictionary = _pending_actions[0]
+	match_flow.submit_action(winner["slot"], winner["dir"])
+
+	_pending_actions.clear()
+
 
 func _on_peer_connected(peer_id: int) -> void:
 	# Will be registered when they send JOIN message
@@ -126,9 +161,13 @@ func handle_message(peer_id: int, text: String) -> void:
 		NetProtocol.MSG_ACTION:
 			_handle_action(peer_id, msg)
 		NetProtocol.MSG_PING:
-			var response := NetProtocol.pong_msg(
-				msg.get("time", 0.0), Time.get_ticks_msec() / 1000.0)
-			_send_to(peer_id, response)
+			var client_time: float = msg.get("time", 0.0)
+			var server_time := Time.get_ticks_msec() / 1000.0
+			_send_to(peer_id, NetProtocol.pong_msg(client_time, server_time))
+			# Estimate latency from round trip (client sends time, we respond)
+			# Actual RTT measured client-side; server stores last known value
+		NetProtocol.MSG_LATENCY_REPORT:
+			peer_latency[peer_id] = msg.get("rtt", 0.0)
 
 
 func _handle_join(peer_id: int, msg: Dictionary) -> void:
@@ -150,7 +189,23 @@ func _handle_action(peer_id: int, msg: Dictionary) -> void:
 		return
 	var slot: int = players[peer_id]["slot"]
 	var direction: int = msg.get("dir", -1)
-	match_flow.submit_action(slot, direction)
+	var client_time: float = msg.get("time", 0.0)
+
+	# Adjust client timestamp by half their round-trip latency
+	# to estimate when the action was actually taken
+	var latency_offset: float = peer_latency.get(peer_id, 0.0) / 2000.0  # half RTT in seconds
+	var adjusted_time: float = client_time - latency_offset
+
+	_pending_actions.append({
+		"peer_id": peer_id,
+		"slot": slot,
+		"dir": direction,
+		"adjusted_time": adjusted_time,
+	})
+
+	# Start the collection window if not already running
+	if _claim_timer < 0:
+		_claim_timer = _claim_window
 
 
 func _broadcast(msg: Dictionary) -> void:

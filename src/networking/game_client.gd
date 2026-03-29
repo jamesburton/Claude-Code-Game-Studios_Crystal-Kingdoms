@@ -113,6 +113,8 @@ func handle_message(text: String) -> void:
 			var now := Time.get_ticks_msec() / 1000.0
 			var rtt := (now - client_time) * 1000.0  # ms
 			ping_updated.emit(rtt)
+			# Report latency back to server for claim ordering
+			_send(NetProtocol.latency_report_msg(rtt))
 
 		NetProtocol.MSG_ERROR:
 			error_received.emit(msg.get("msg", "Unknown error"))

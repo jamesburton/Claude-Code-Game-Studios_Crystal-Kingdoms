@@ -4,7 +4,7 @@ extends Control
 
 signal back_pressed()
 signal match_ready(server: GameServer, config: GameConfig)
-signal join_match(client: GameClient)
+signal client_match_starting(client: GameClient, config_data: Dictionary)
 
 var _server: GameServer
 var _client: GameClient
@@ -160,6 +160,8 @@ func _connect_to(address: String) -> void:
 		_join_panel.visible = false
 		_lobby_panel.visible = true
 		_status_label.text = "Connected to %s" % address)
+	_client.match_starting.connect(func(config_data: Dictionary) -> void:
+		client_match_starting.emit(_client, config_data))
 
 	var err := _client.connect_to_server(address, 19735, "Player")
 	if err != OK:

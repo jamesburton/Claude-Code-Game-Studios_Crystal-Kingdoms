@@ -142,6 +142,12 @@ func _show_lobby() -> void:
 			_player_setup.append({"player_id": i, "name": "Player %d" % (i + 1),
 				"is_cpu": false, "difficulty": 0})
 		_fade_to(_start_network_host_match))
+	lobby.client_match_starting.connect(func(client: GameClient, config_data: Dictionary) -> void:
+		_net_client = client
+		_net_server = null
+		_is_network_match = true
+		_my_net_slot = client.my_slot
+		_fade_to(_start_network_client_match.bind(config_data)))
 
 
 func _start_network_host_match() -> void:
@@ -183,6 +189,97 @@ func _start_network_host_match() -> void:
 	_hud = GameHud.new()
 	add_child(_hud)
 	_hud.setup(_match_flow)
+
+	_show_countdown()
+
+
+func _start_network_client_match(config_data: Dictionary) -> void:
+	_clear_scene()
+	_in_match = true
+	_is_network_match = true
+
+	var bg := ColorRect.new()
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0.06, 0.06, 0.1)
+	add_child(bg)
+
+	# Build config from server data
+	_config = GameConfig.new()
+	_config.grid_size = config_data.get("grid_size", 8)
+	_config.capture_threshold = config_data.get("capture_threshold", 3)
+	_config.time_limit = config_data.get("time_limit", 90)
+	_config.player_count = config_data.get("player_count", 2)
+	_config.wrap_around = config_data.get("wrap_around", true)
+	_config.board_shape = config_data.get("board_shape", 0) as CKEnums.BoardShape
+	_config.skip_blanks = config_data.get("skip_blanks", true)
+	_config.allow_tap = config_data.get("allow_tap", true)
+	_config.max_castles = config_data.get("max_castles", 0)
+
+	# Create local board (display only — server is authoritative)
+	var board := BoardState.new(_config)
+	_human_players = [_my_net_slot]
+
+	# Renderer
+	_renderer = BoardRenderer.new()
+	add_child(_renderer)
+	_renderer.setup(board, _config.chain_step_delay,
+		get_viewport().get_visible_rect().size, _config.capture_threshold)
+
+	# Sound
+	_sound = SoundManager.new()
+	add_child(_sound)
+
+	_music.play_game_music()
+
+	# Wire client events → renderer
+	_net_client.cursor_spawned.connect(func(idx: int) -> void:
+		board.cursor_index = idx
+		board.cursor_active = true
+		if _sound: _sound.play("cursor_spawn"))
+
+	_net_client.events_received.connect(func(events: Array) -> void:
+		# Apply events to local board for display
+		for ev: Dictionary in events:
+			var ev_type: int = ev.get("type", -1)
+			var grid_idx: int = ev.get("grid_index", 0)
+			var actor: int = ev.get("actor_id", 0)
+			match ev_type:
+				CKEnums.EventType.CAPTURE_EMPTY:
+					board.cells_owner[grid_idx] = actor
+					board.cells_contagion[grid_idx] = {}
+				CKEnums.EventType.INCREMENT_CONTAGION:
+					var level: int = ev.get("contagion_level", 1)
+					var cont: Dictionary = board.cells_contagion[grid_idx]
+					cont[actor] = level
+					board.cells_contagion[grid_idx] = cont
+				CKEnums.EventType.CAPTURE_CONTAGION:
+					board.cells_owner[grid_idx] = actor
+					board.cells_contagion[grid_idx] = {}
+				CKEnums.EventType.DESTROY_OWN_CASTLE:
+					board.cells_owner[grid_idx] = -1
+		board.cursor_active = false
+		if _renderer:
+			_renderer.play_events(events)
+		# SFX for first event
+		if _sound and events.size() > 0:
+			var first_type: int = events[0].get("type", -1)
+			match first_type:
+				CKEnums.EventType.CAPTURE_EMPTY: _sound.play("capture_empty")
+				CKEnums.EventType.INCREMENT_CONTAGION: _sound.play("contagion")
+				CKEnums.EventType.CAPTURE_CONTAGION: _sound.play("capture_contagion")
+				CKEnums.EventType.DESTROY_OWN_CASTLE: _sound.play("destroy"))
+
+	_net_client.match_ended.connect(func(summary: Dictionary) -> void:
+		if _sound: _sound.play("match_end")
+		_in_match = false)
+
+	# Simple HUD for client (just timer label for now)
+	var info := Label.new()
+	info.text = "Connected as Player %d | Escape = disconnect" % (_my_net_slot + 1)
+	info.position = Vector2(20, 10)
+	info.add_theme_font_size_override("font_size", 16)
+	info.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	add_child(info)
 
 	_show_countdown()
 
@@ -267,16 +364,27 @@ func _start_match() -> void:
 # === GAME LOOP ===
 
 func _process(delta: float) -> void:
-	if _match_flow == null or _match_flow.state != MatchFlow.State.PLAYING:
-		return
 	if _tutorial_panel or _paused or _countdown_active:
+		return
+	if not _in_match:
+		return
+	# Client network match: no local match_flow to tick, just check input
+	if _is_network_match and _net_client:
+		_check_input()
+		return
+	# Local or host match
+	if _match_flow == null or _match_flow.state != MatchFlow.State.PLAYING:
 		return
 	_match_flow.tick(delta)
 	_check_input()
 
 
 func _check_input() -> void:
-	if _match_flow.turn_director.state != TurnDirector.State.ACTIVE:
+	# For client network matches, check if cursor is visible (no local turn director)
+	if _is_network_match and _net_client:
+		# Client accepts input anytime (server validates)
+		pass
+	elif _match_flow and _match_flow.turn_director.state != TurnDirector.State.ACTIVE:
 		return
 
 	for key: int in KEY_BINDINGS:
@@ -319,7 +427,12 @@ func _check_gamepad_input() -> void:
 
 
 func _do_action(player: int, direction: int) -> void:
-	_match_flow.submit_action(player, direction)
+	if _is_network_match and _net_client:
+		# Client: send to server
+		_net_client.send_action(direction)
+	elif _match_flow:
+		# Local or host: submit directly
+		_match_flow.submit_action(player, direction)
 
 
 func _on_action_events(events: Array) -> void:

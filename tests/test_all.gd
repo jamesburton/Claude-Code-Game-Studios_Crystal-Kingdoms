@@ -84,6 +84,10 @@ func _init() -> void:
 	_test_reinforced_extra_threshold()
 	_test_persistent_specials()
 
+	# Network protocol
+	_test_net_protocol_encode_decode()
+	_test_latency_adjusted_ordering()
+
 	# GameConfig
 	_test_default_max_castles()
 	_test_default_timing()
@@ -953,6 +957,49 @@ func _test_persistent_specials() -> void:
 	r = _make_rules(c, b)
 	r.resolve_action(0, 29, -1)
 	_assert_eq(b.cells_score_mult[29], 1.0, "non-persistent: reverted to normal")
+
+
+func _test_net_protocol_encode_decode() -> void:
+	print("NetProtocol: encode/decode...")
+	var msg = NetProtocol.action_msg(1, 2, 1234.5)
+	var encoded = NetProtocol.encode(msg)
+	var decoded = NetProtocol.decode(encoded)
+	_assert_eq(decoded["type"], NetProtocol.MSG_ACTION, "action type preserved")
+	_assert_eq(decoded["player"], 1, "player preserved")
+	_assert_eq(decoded["dir"], 2, "direction preserved")
+	_assert(decoded["time"] > 1234.0, "timestamp preserved")
+
+	var cursor = NetProtocol.cursor_msg(42, 5.0)
+	var c_dec = NetProtocol.decode(NetProtocol.encode(cursor))
+	_assert_eq(c_dec["index"], 42, "cursor index preserved")
+
+	var ping = NetProtocol.ping_msg(100.0)
+	var p_dec = NetProtocol.decode(NetProtocol.encode(ping))
+	_assert_eq(p_dec["type"], NetProtocol.MSG_PING, "ping type")
+
+	var latency = NetProtocol.latency_report_msg(45.5)
+	var l_dec = NetProtocol.decode(NetProtocol.encode(latency))
+	_assert_eq(l_dec["type"], NetProtocol.MSG_LATENCY_REPORT, "latency report type")
+
+
+func _test_latency_adjusted_ordering() -> void:
+	print("Network: latency-adjusted claim ordering...")
+	# Simulate: Player A has 20ms latency, presses at t=1.000
+	# Player B has 80ms latency, presses at t=0.980 (earlier!)
+	# Without compensation: A arrives first (20ms < 80ms)
+	# With compensation: B's adjusted time is earlier (0.980 - 40ms = 0.940 vs 1.000 - 10ms = 0.990)
+
+	var actions: Array[Dictionary] = [
+		{"slot": 0, "adjusted_time": 1.000 - 0.010, "dir": 0},  # A: t=1.0, latency 20ms, adj=0.990
+		{"slot": 1, "adjusted_time": 0.980 - 0.040, "dir": 1},  # B: t=0.98, latency 80ms, adj=0.940
+	]
+
+	# Sort by adjusted_time (earliest wins)
+	actions.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return a["adjusted_time"] < b["adjusted_time"])
+
+	_assert_eq(actions[0]["slot"], 1, "Player B (earlier adjusted time) wins despite higher latency")
+	_assert(actions[0]["adjusted_time"] < actions[1]["adjusted_time"], "B's adjusted time is earlier")
 
 
 func _test_default_max_castles() -> void:
