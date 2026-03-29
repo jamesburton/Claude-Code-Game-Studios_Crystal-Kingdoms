@@ -89,6 +89,7 @@ func _show_main_menu() -> void:
 	menu.play_pressed.connect(func() -> void: _fade_to(_show_play_screen))
 	menu.online_pressed.connect(func() -> void: _fade_to(_show_lobby))
 	menu.replays_pressed.connect(func() -> void: _fade_to(_show_replays))
+	menu.editor_pressed.connect(func() -> void: _fade_to(_show_editor))
 	menu.options_pressed.connect(func() -> void: _fade_to(_show_options))
 	menu.quit_pressed.connect(func() -> void: get_tree().quit())
 
@@ -101,6 +102,7 @@ func _show_play_screen() -> void:
 	config_screen.size = get_viewport().get_visible_rect().size
 	add_child(config_screen)
 	config_screen.match_requested.connect(_on_match_requested)
+	config_screen.keybindings_requested.connect(func() -> void: _fade_to(_show_keybindings))
 
 	# Back button
 	var back := Button.new()
@@ -109,6 +111,22 @@ func _show_play_screen() -> void:
 	back.custom_minimum_size = Vector2(80, 35)
 	back.pressed.connect(func() -> void: _fade_to(_show_main_menu))
 	add_child(back)
+
+
+func _show_editor() -> void:
+	_clear_scene()
+	var editor := BoardEditor.new()
+	editor.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(editor)
+	editor.back_pressed.connect(func() -> void: _fade_to(_show_main_menu))
+
+
+func _show_keybindings() -> void:
+	_clear_scene()
+	var kb := KeybindScreen.new()
+	kb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(kb)
+	kb.back_pressed.connect(func() -> void: _fade_to(_show_play_screen))
 
 
 func _show_replays() -> void:

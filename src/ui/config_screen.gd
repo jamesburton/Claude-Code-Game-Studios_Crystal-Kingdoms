@@ -4,6 +4,7 @@ class_name ConfigScreen
 extends Control
 
 signal match_requested(config: GameConfig, player_setup: Array[Dictionary])
+signal keybindings_requested()
 
 const PLAYER_COLORS: Array[Color] = [
 	Color(0.2, 0.5, 1.0), Color(1.0, 0.3, 0.2),
@@ -418,6 +419,18 @@ func _build_ui() -> void:
 
 	# Start button
 	_add_spacer(10)
+	# Keybindings button
+	_add_spacer(4)
+	var keybind_btn := Button.new()
+	keybind_btn.text = "Keyboard Bindings..."
+	keybind_btn.custom_minimum_size = Vector2(200, 35)
+	keybind_btn.add_theme_font_size_override("font_size", 15)
+	keybind_btn.pressed.connect(_open_keybindings)
+	var kb_center := CenterContainer.new()
+	kb_center.add_child(keybind_btn)
+	_container.add_child(kb_center)
+
+	_add_spacer(6)
 	_start_button = Button.new()
 	_start_button.text = "START MATCH"
 	_start_button.custom_minimum_size = Vector2(280, 45)
@@ -647,6 +660,10 @@ func _save_current_preset() -> void:
 	var preset := PresetManager.config_to_preset(config, name_text)
 	PresetManager.save_user_preset(name_text, preset)
 	_preset_name_edit.text = ""
+
+
+func _open_keybindings() -> void:
+	keybindings_requested.emit()
 
 
 func _on_start_pressed() -> void:
