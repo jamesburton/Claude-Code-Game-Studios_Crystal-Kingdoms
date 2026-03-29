@@ -29,6 +29,9 @@ jobs:
           use-dotnet: false
           include-templates: true
 
+      - name: Clean cached imports
+        run: rm -rf .godot/
+
       - name: Import project
         run: godot --headless --import --path .
 
