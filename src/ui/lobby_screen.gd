@@ -189,7 +189,7 @@ func _start_hosting() -> void:
 	# Start broadcasting for LAN discovery
 	_discovery = LanDiscovery.new()
 	add_child(_discovery)
-	_discovery.start_broadcasting(host_name, 19735, 1)
+	_discovery.start_broadcasting("Host", 19735, 1)
 	_server.lobby_updated.connect(func() -> void:
 		if _discovery: _discovery.update_player_count(_server.get_player_count()))
 

@@ -188,7 +188,7 @@ func _load_bindings() -> void:
 		return
 	for p in range(4):
 		for a in range(5):
-			var key := cf.get_value("bindings", "p%d_%s" % [p, ACTIONS[a].to_lower()], _bindings[p][a])
+			var key: int = cf.get_value("bindings", "p%d_%s" % [p, ACTIONS[a].to_lower()], _bindings[p][a])
 			_bindings[p][a] = key
 
 

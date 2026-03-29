@@ -146,6 +146,10 @@ func _update_scores() -> void:
 
 
 func _show_end_screen(summary: Dictionary) -> void:
+	var vp := get_viewport().get_visible_rect().size
+	if vp.x < 10:
+		vp = Vector2(1600, 900)
+
 	_end_panel = Control.new()
 	_end_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_end_panel)
