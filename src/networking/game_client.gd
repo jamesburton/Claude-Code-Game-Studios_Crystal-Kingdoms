@@ -20,6 +20,9 @@ var _ping_timer: float = 0.0
 
 const PING_INTERVAL := 2.0
 
+## Default relay server URL (GitHub Pages hosted or Fly.io)
+const DEFAULT_RELAY_URL := "wss://crystal-kingdoms-relay.fly.dev"
+
 
 func connect_to_server(address: String, port: int = 19735, p_name: String = "Player") -> Error:
 	player_name = p_name
@@ -43,6 +46,24 @@ func disconnect_from_server() -> void:
 
 func is_connected_to_server() -> bool:
 	return _connected
+
+
+## Connect to the relay server with a room code.
+func connect_to_relay(room_code: String, p_name: String = "Player",
+		relay_url: String = DEFAULT_RELAY_URL) -> Error:
+	player_name = p_name
+	_client = WebSocketMultiplayerPeer.new()
+	var err := _client.create_client(relay_url)
+	if err != OK:
+		return err
+	multiplayer.multiplayer_peer = _client
+	multiplayer.connected_to_server.connect(func() -> void:
+		_connected = true
+		# Send join_room with code
+		_send({"type": "join_room", "code": room_code, "name": player_name})
+		connected_to_server.emit())
+	multiplayer.server_disconnected.connect(_on_disconnected)
+	return OK
 
 
 ## Send a player action to the server.

@@ -5,6 +5,24 @@ extends RefCounted
 
 const SETTINGS_PATH := "user://settings.cfg"
 const SECTION := "game"
+const NET_SECTION := "network"
+const DEFAULT_RELAY_URL := "wss://crystal-kingdoms-relay.fly.dev"
+
+
+## Get the relay server URL (configurable, defaults to Fly.io hosted).
+static func get_relay_url() -> String:
+	var cf := ConfigFile.new()
+	if cf.load(SETTINGS_PATH) == OK:
+		return cf.get_value(NET_SECTION, "relay_url", DEFAULT_RELAY_URL)
+	return DEFAULT_RELAY_URL
+
+
+## Set a custom relay server URL.
+static func set_relay_url(url: String) -> void:
+	var cf := ConfigFile.new()
+	cf.load(SETTINGS_PATH)
+	cf.set_value(NET_SECTION, "relay_url", url)
+	cf.save(SETTINGS_PATH)
 
 ## Save a GameConfig to disk.
 static func save_config(config: GameConfig) -> void:

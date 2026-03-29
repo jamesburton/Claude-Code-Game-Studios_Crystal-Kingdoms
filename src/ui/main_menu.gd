@@ -34,13 +34,17 @@ func _build_ui() -> void:
 	add_child(_bg)
 
 	# Animated background particles
-	_add_bg_particles()
-
-	var vp := get_viewport().get_visible_rect().size
+	call_deferred("_add_bg_particles")
 
 	_menu_container = Control.new()
 	_menu_container.set_anchors_preset(PRESET_FULL_RECT)
 	add_child(_menu_container)
+
+	# Centered layout using containers
+	var outer := VBoxContainer.new()
+	outer.set_anchors_preset(PRESET_FULL_RECT)
+	outer.alignment = BoxContainer.ALIGNMENT_CENTER
+	_menu_container.add_child(outer)
 
 	# Title
 	_title_label = Label.new()
@@ -48,9 +52,7 @@ func _build_ui() -> void:
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title_label.add_theme_font_size_override("font_size", 48)
 	_title_label.add_theme_color_override("font_color", Color(0.9, 0.85, 0.3))
-	_title_label.position = Vector2(vp.x / 2 - 300, 100)
-	_title_label.size = Vector2(600, 60)
-	_menu_container.add_child(_title_label)
+	outer.add_child(_title_label)
 
 	# Subtitle
 	var subtitle := Label.new()
@@ -58,14 +60,18 @@ func _build_ui() -> void:
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.add_theme_font_size_override("font_size", 18)
 	subtitle.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
-	subtitle.position = Vector2(vp.x / 2 - 200, 165)
-	subtitle.size = Vector2(400, 30)
-	_menu_container.add_child(subtitle)
+	outer.add_child(subtitle)
 
-	# Buttons
+	var top_spacer := Control.new()
+	top_spacer.custom_minimum_size.y = 30
+	outer.add_child(top_spacer)
+
+	# Button container centered
+	var btn_center := CenterContainer.new()
+	outer.add_child(btn_center)
+
 	var btn_container := VBoxContainer.new()
-	btn_container.position = Vector2(vp.x / 2 - 140, vp.y / 2 - 40)
-	_menu_container.add_child(btn_container)
+	btn_center.add_child(btn_container)
 
 	var play_btn := _make_button("Play", 24)
 	play_btn.pressed.connect(func() -> void: play_pressed.emit())
@@ -101,12 +107,14 @@ func _build_ui() -> void:
 	quit_btn.pressed.connect(func() -> void: quit_pressed.emit())
 	btn_container.add_child(quit_btn)
 
-	# Version
+	# Version (bottom-left anchored)
 	var version := Label.new()
-	version.text = "v1.5.0 — Fluffy Productions"
+	version.text = "v3.1.0 — Fluffy Productions"
 	version.add_theme_font_size_override("font_size", 12)
 	version.add_theme_color_override("font_color", Color(0.3, 0.3, 0.35))
-	version.position = Vector2(20, vp.y - 30)
+	version.set_anchors_preset(PRESET_BOTTOM_LEFT)
+	version.offset_left = 10
+	version.offset_bottom = -10
 	_menu_container.add_child(version)
 
 
@@ -215,13 +223,14 @@ func _stop_attract_visuals() -> void:
 
 
 func _add_bg_particles() -> void:
-	# Simple floating dots as background decoration
+	var vp := get_viewport().get_visible_rect().size
+	if vp.x < 10:
+		vp = Vector2(1600, 900)  # Fallback if viewport not ready
 	for i in range(20):
 		var dot := ColorRect.new()
 		var s := randf_range(2, 5)
 		dot.size = Vector2(s, s)
 		dot.color = Color(0.3, 0.3, 0.5, randf_range(0.1, 0.3))
-		var vp := get_viewport().get_visible_rect().size
 		dot.position = Vector2(randf() * vp.x, randf() * vp.y)
 		add_child(dot)
 		var tw := create_tween().set_loops()
