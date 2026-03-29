@@ -234,7 +234,36 @@ func _make_button(text: String, font_size: int) -> Button:
 	btn.text = text
 	btn.custom_minimum_size = Vector2(280, 50)
 	btn.add_theme_font_size_override("font_size", font_size)
+	btn.mouse_entered.connect(func() -> void: _play_ui_sound("ui_hover"))
+	btn.pressed.connect(func() -> void: _play_ui_sound("ui_click"))
 	return btn
+
+static var _ui_sound_player: AudioStreamPlayer
+
+func _play_ui_sound(sfx_name: String) -> void:
+	# Lightweight UI sound — shared player
+	if _ui_sound_player == null:
+		_ui_sound_player = AudioStreamPlayer.new()
+		add_child(_ui_sound_player)
+	var freq := 600.0 if sfx_name == "ui_hover" else 800.0
+	var dur := 0.03 if sfx_name == "ui_hover" else 0.05
+	var vol := 0.15 if sfx_name == "ui_hover" else 0.25
+	var samples := int(22050 * dur)
+	var data := PackedByteArray()
+	data.resize(samples * 2)
+	for i in range(samples):
+		var t := float(i) / 22050
+		var env := 1.0 - float(i) / samples
+		var s := sin(TAU * freq * t) * vol * env
+		var s16 := clampi(int(s * 32767), -32768, 32767)
+		data[i * 2] = s16 & 0xFF
+		data[i * 2 + 1] = (s16 >> 8) & 0xFF
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = 22050
+	stream.data = data
+	_ui_sound_player.stream = stream
+	_ui_sound_player.play()
 
 
 func _add_btn_spacer(container: VBoxContainer) -> void:
