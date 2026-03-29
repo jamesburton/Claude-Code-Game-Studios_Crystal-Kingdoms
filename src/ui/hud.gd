@@ -16,6 +16,7 @@ const PLAYER_NAMES: Array[String] = [
 var _match_flow: MatchFlow
 var _timer_label: Label
 var _score_labels: Array[Label] = []
+var _score_cards: Array[Control] = []  # Card containers (bg + bar + label)
 var _info_label: Label
 var _end_panel: Control
 
@@ -35,34 +36,37 @@ func _build_ui() -> void:
 	_timer_label.add_theme_color_override("font_color", Color.WHITE)
 	add_child(_timer_label)
 
-	# Player score cards
+	# Player score cards — each in a container for easy repositioning
 	var card_height := 32 if _match_flow.config.player_count <= 4 else 24
 	var font_size := 18 if _match_flow.config.player_count <= 4 else 14
 	for i in range(_match_flow.config.player_count):
 		var color: Color = PLAYER_COLORS[i] if i < PLAYER_COLORS.size() else Color.WHITE
-		var y_pos := 8 + i * (card_height + 4)
+
+		var card := Control.new()
+		card.size = Vector2(280, card_height)
+		card.position = Vector2(8, 8 + i * (card_height + 4))
+		add_child(card)
+		_score_cards.append(card)
 
 		# Card background
 		var card_bg := ColorRect.new()
 		card_bg.size = Vector2(280, card_height)
-		card_bg.position = Vector2(8, y_pos)
 		card_bg.color = Color(0.15, 0.15, 0.2, 0.8)
-		add_child(card_bg)
+		card.add_child(card_bg)
 
 		# Color bar on left edge
 		var bar := ColorRect.new()
 		bar.size = Vector2(4, card_height)
-		bar.position = Vector2(8, y_pos)
 		bar.color = color
-		add_child(bar)
+		card.add_child(bar)
 
 		# Score text
 		var lbl := Label.new()
-		lbl.position = Vector2(18, y_pos + 2)
+		lbl.position = Vector2(10, 2)
 		lbl.size = Vector2(265, card_height - 4)
 		lbl.add_theme_font_size_override("font_size", font_size)
 		lbl.add_theme_color_override("font_color", Color.WHITE)
-		add_child(lbl)
+		card.add_child(lbl)
 		_score_labels.append(lbl)
 
 	# Info label
@@ -95,20 +99,20 @@ func _update_layout() -> void:
 	# Reposition info
 	_info_label.position = Vector2(vp.x / 2 - 200, vp.y - 28)
 
-	# Reposition score cards
-	for i in range(_score_labels.size()):
+	# Reposition score cards (move the whole container)
+	var card_height := 32 if _match_flow.config.player_count <= 4 else 24
+	for i in range(_score_cards.size()):
 		if is_portrait:
-			# Top area, compact horizontal
-			var cols := mini(_score_labels.size(), 4)
+			var cols := mini(_score_cards.size(), 4)
 			var col := i % cols
 			var row := i / cols
 			var card_w := (vp.x - 20) / cols
-			_score_labels[i].position = Vector2(10 + col * card_w + 10, 4 + row * 28)
+			_score_cards[i].position = Vector2(10 + col * card_w, 4 + row * (card_height + 4))
+			_score_cards[i].size.x = card_w - 5
 		else:
-			# Right side, vertical stack
 			var x_pos := vp.x - 290
-			var card_height := 32 if _match_flow.config.player_count <= 4 else 24
-			_score_labels[i].position = Vector2(x_pos + 10, 8 + i * (card_height + 4) + 2)
+			_score_cards[i].position = Vector2(x_pos, 8 + i * (card_height + 4))
+			_score_cards[i].size.x = 280
 
 
 func _update_timer() -> void:
