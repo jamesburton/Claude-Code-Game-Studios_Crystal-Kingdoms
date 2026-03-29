@@ -56,6 +56,13 @@ jobs:
           # Inject the service worker script into index.html before </head>
           sed -i 's|</head>|<script src="coi-serviceworker.min.js"></script></head>|' build/web/index.html
 
+          # Cache-bust: rename .pck with git hash to force browser to download fresh
+          HASH=$(git rev-parse --short HEAD)
+          if [ -f build/web/CrystalKingdoms.pck ]; then
+            mv build/web/CrystalKingdoms.pck "build/web/CrystalKingdoms.${HASH}.pck"
+            sed -i "s|CrystalKingdoms.pck|CrystalKingdoms.${HASH}.pck|g" build/web/index.html
+          fi
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
