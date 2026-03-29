@@ -273,13 +273,25 @@ func _start_network_client_match(config_data: Dictionary) -> void:
 		if _sound: _sound.play("match_end")
 		_in_match = false)
 
-	# Simple HUD for client (just timer label for now)
+	# Client HUD
 	var info := Label.new()
 	info.text = "Connected as Player %d | Escape = disconnect" % (_my_net_slot + 1)
 	info.position = Vector2(20, 10)
 	info.add_theme_font_size_override("font_size", 16)
 	info.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	add_child(info)
+
+	# Ping display
+	var ping_label := Label.new()
+	ping_label.text = "Ping: --"
+	ping_label.position = Vector2(20, 35)
+	ping_label.add_theme_font_size_override("font_size", 14)
+	ping_label.add_theme_color_override("font_color", Color(0.5, 0.7, 0.5))
+	add_child(ping_label)
+	_net_client.ping_updated.connect(func(ms: float) -> void:
+		var color := Color(0.5, 0.9, 0.5) if ms < 50 else Color(0.9, 0.9, 0.3) if ms < 100 else Color(0.9, 0.4, 0.3)
+		ping_label.add_theme_color_override("font_color", color)
+		ping_label.text = "Ping: %dms" % int(ms))
 
 	_show_countdown()
 

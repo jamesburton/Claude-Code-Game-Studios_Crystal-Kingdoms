@@ -140,11 +140,18 @@ func _on_peer_connected(peer_id: int) -> void:
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	if peer_id in players:
-		var name: String = players[peer_id]["name"]
+		var p_name: String = players[peer_id]["name"]
+		var slot: int = players[peer_id]["slot"]
 		players.erase(peer_id)
 		player_left.emit(peer_id)
-		_broadcast({"type": NetProtocol.MSG_PLAYER_LEFT, "peer": peer_id, "name": name})
+		_broadcast({"type": NetProtocol.MSG_PLAYER_LEFT, "peer": peer_id, "name": p_name})
 		lobby_updated.emit()
+
+		# If match is running, replace disconnected player with CPU
+		if match_flow and match_flow.state == MatchFlow.State.PLAYING:
+			var med := load("res://src/data/cpu_difficulty_medium.tres") as CpuDifficulty
+			if med:
+				match_flow.add_cpu(slot, med)
 
 
 ## Handle incoming message from a client.

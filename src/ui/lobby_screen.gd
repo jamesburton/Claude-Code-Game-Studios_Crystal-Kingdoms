@@ -8,11 +8,13 @@ signal client_match_starting(client: GameClient, config_data: Dictionary)
 
 var _server: GameServer
 var _client: GameClient
+var _discovery: LanDiscovery
 var _player_list_label: Label
 var _status_label: Label
 var _host_panel: Control
 var _join_panel: Control
 var _lobby_panel: Control
+var _lan_games_list: VBoxContainer
 
 
 func _ready() -> void:
@@ -83,6 +85,18 @@ func _build_ui() -> void:
 	connect_btn.pressed.connect(func() -> void: _connect_to(ip_edit.text))
 	_join_panel.add_child(connect_btn)
 
+	# LAN games list
+	var lan_header := Label.new()
+	lan_header.text = "LAN Games Found:"
+	lan_header.add_theme_font_size_override("font_size", 16)
+	lan_header.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	lan_header.position = Vector2(center_x - 180, vp.y / 2 + 70)
+	_join_panel.add_child(lan_header)
+
+	_lan_games_list = VBoxContainer.new()
+	_lan_games_list.position = Vector2(center_x - 180, vp.y / 2 + 95)
+	_join_panel.add_child(_lan_games_list)
+
 	# Lobby panel (shown after hosting or joining)
 	_lobby_panel = Control.new()
 	_lobby_panel.visible = false
@@ -143,10 +157,22 @@ func _start_hosting() -> void:
 	_status_label.text = "Hosting on %s:%d — share this with other players" % [display_ip, 19735]
 	_update_lobby_display()
 
+	# Start broadcasting for LAN discovery
+	_discovery = LanDiscovery.new()
+	add_child(_discovery)
+	_discovery.start_broadcasting(host_name, 19735, 1)
+	_server.lobby_updated.connect(func() -> void:
+		if _discovery: _discovery.update_player_count(_server.get_player_count()))
+
 
 func _show_join_panel() -> void:
 	_host_panel.visible = false
 	_join_panel.visible = true
+	# Start LAN discovery
+	_discovery = LanDiscovery.new()
+	add_child(_discovery)
+	_discovery.start_listening()
+	_discovery.server_found.connect(_on_lan_server_found)
 
 
 func _connect_to(address: String) -> void:
@@ -187,12 +213,47 @@ func _update_client_lobby(players: Array, host: String) -> void:
 
 func _on_start_match() -> void:
 	if _server:
-		var config := GameConfig.new()
+		# Load saved settings or use defaults
+		var config := SettingsManager.load_config()
+		if config == null:
+			config = GameConfig.new()
 		config.player_count = _server.get_player_count()
 		match_ready.emit(_server, config)
 
 
+func _on_lan_server_found(address: String, port: int, host_name: String, player_count: int) -> void:
+	if _lan_games_list == null:
+		return
+	# Check if already listed
+	for child in _lan_games_list.get_children():
+		if child.has_meta("address") and child.get_meta("address") == address:
+			return  # Already listed
+
+	var row := HBoxContainer.new()
+	row.set_meta("address", address)
+	row.custom_minimum_size.y = 30
+
+	var info := Label.new()
+	info.text = "%s (%s:%d) — %d players" % [host_name, address, port, player_count]
+	info.add_theme_font_size_override("font_size", 14)
+	info.add_theme_color_override("font_color", Color(0.6, 0.9, 0.6))
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(info)
+
+	var join_btn := Button.new()
+	join_btn.text = "Join"
+	join_btn.custom_minimum_size = Vector2(60, 28)
+	join_btn.pressed.connect(func() -> void: _connect_to(address))
+	row.add_child(join_btn)
+
+	_lan_games_list.add_child(row)
+
+
 func _cleanup() -> void:
+	if _discovery:
+		_discovery.stop()
+		_discovery.queue_free()
+		_discovery = null
 	if _server:
 		_server.stop()
 		_server.queue_free()
