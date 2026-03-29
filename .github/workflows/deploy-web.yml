@@ -44,12 +44,14 @@ jobs:
         run: |
           # Rename to index.html for GitHub Pages
           mv build/web/CrystalKingdoms.html build/web/index.html
-          # Add headers file for SharedArrayBuffer support (required by Godot web exports)
-          cat > build/web/_headers <<'HEADERS'
-          /*
-            Cross-Origin-Opener-Policy: same-origin
-            Cross-Origin-Embedder-Policy: require-corp
-          HEADERS
+
+          # GitHub Pages doesn't support custom headers.
+          # Use coi-serviceworker to enable SharedArrayBuffer (required by Godot).
+          curl -sL https://raw.githubusercontent.com/nickvdp/coi-serviceworker/main/coi-serviceworker.min.js \
+            -o build/web/coi-serviceworker.min.js
+
+          # Inject the service worker script into index.html before </head>
+          sed -i 's|</head>|<script src="coi-serviceworker.min.js"></script></head>|' build/web/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
