@@ -256,31 +256,7 @@ func _start_network_client_match(config_data: Dictionary) -> void:
 		if _sound: _sound.play("cursor_spawn"))
 
 	_net_client.events_received.connect(func(events: Array) -> void:
-		# Apply events to local board for display
-		for ev: Dictionary in events:
-			var ev_type: int = ev.get("type", -1)
-			var grid_idx: int = ev.get("grid_index", 0)
-			var actor: int = ev.get("actor_id", 0)
-			match ev_type:
-				CKEnums.EventType.CAPTURE_EMPTY:
-					board.cells_owner[grid_idx] = actor
-					board.cells_contagion[grid_idx] = {}
-				CKEnums.EventType.INCREMENT_CONTAGION:
-					var level: int = ev.get("contagion_level", 1)
-					var cont: Dictionary = board.cells_contagion[grid_idx]
-					cont[actor] = level
-					board.cells_contagion[grid_idx] = cont
-				CKEnums.EventType.CAPTURE_CONTAGION:
-					board.cells_owner[grid_idx] = actor
-					board.cells_contagion[grid_idx] = {}
-				CKEnums.EventType.DESTROY_OWN_CASTLE:
-					board.cells_owner[grid_idx] = -1
-		board.cursor_active = false
-		if _renderer:
-			_renderer.play_events(events)
-		# SFX for first event
-		if _sound and events.size() > 0:
-			_play_event_sfx(events[0].get("type", -1)))
+		_apply_client_events(board, events))
 
 	_net_client.match_ended.connect(func(summary: Dictionary) -> void:
 		if _sound: _sound.play("match_end")
@@ -465,6 +441,31 @@ func _on_action_events(events: Array) -> void:
 		_renderer.play_events(events)
 		_renderer.set_bonus_cells(_match_flow.bonus_stacks)
 	if _sound and not events.is_empty():
+		_play_event_sfx(events[0].get("type", -1))
+
+
+func _apply_client_events(board: BoardState, events: Array) -> void:
+	for ev: Dictionary in events:
+		var ev_type: int = ev.get("type", -1)
+		var grid_idx: int = ev.get("grid_index", 0)
+		var actor: int = ev.get("actor_id", 0)
+		if ev_type == CKEnums.EventType.CAPTURE_EMPTY:
+			board.cells_owner[grid_idx] = actor
+			board.cells_contagion[grid_idx] = {}
+		elif ev_type == CKEnums.EventType.INCREMENT_CONTAGION:
+			var level: int = ev.get("contagion_level", 1)
+			var cont: Dictionary = board.cells_contagion[grid_idx]
+			cont[actor] = level
+			board.cells_contagion[grid_idx] = cont
+		elif ev_type == CKEnums.EventType.CAPTURE_CONTAGION:
+			board.cells_owner[grid_idx] = actor
+			board.cells_contagion[grid_idx] = {}
+		elif ev_type == CKEnums.EventType.DESTROY_OWN_CASTLE:
+			board.cells_owner[grid_idx] = -1
+	board.cursor_active = false
+	if _renderer:
+		_renderer.play_events(events)
+	if _sound and events.size() > 0:
 		_play_event_sfx(events[0].get("type", -1))
 
 
