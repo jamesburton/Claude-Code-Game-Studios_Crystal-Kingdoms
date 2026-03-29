@@ -14,6 +14,7 @@ var _running: bool = false
 
 ## Lobby state
 var players: Dictionary = {}  ## {peer_id: {name, slot, ready}}
+var spectators: Dictionary = {}  ## {peer_id: {name}}
 var host_name: String = "Host"
 var max_players: int = 8
 var _next_slot: int = 1  ## slot 0 is host
@@ -165,8 +166,17 @@ func handle_message(peer_id: int, text: String) -> void:
 	match msg_type:
 		NetProtocol.MSG_JOIN:
 			_handle_join(peer_id, msg)
+		NetProtocol.MSG_JOIN_SPECTATOR:
+			spectators[peer_id] = {"name": msg.get("name", "Spectator")}
+			_broadcast_lobby()
+			lobby_updated.emit()
 		NetProtocol.MSG_ACTION:
 			_handle_action(peer_id, msg)
+		NetProtocol.MSG_EMOTE:
+			# Broadcast emote to all players + spectators
+			_broadcast({"type": NetProtocol.MSG_EMOTE,
+				"player": players[peer_id]["slot"] if peer_id in players else -1,
+				"emote": msg.get("emote", "")})
 		NetProtocol.MSG_PING:
 			var client_time: float = msg.get("time", 0.0)
 			var server_time := Time.get_ticks_msec() / 1000.0
@@ -219,10 +229,12 @@ func _broadcast(msg: Dictionary) -> void:
 	if not _running or _server == null:
 		return
 	var text := NetProtocol.encode(msg)
-	# Send to all connected peers
+	# Send to all players + spectators
 	for peer_id: int in players:
 		if peer_id == 1:
-			continue  # Skip host (handled locally)
+			continue
+		_send_text_to(peer_id, text)
+	for peer_id: int in spectators:
 		_send_text_to(peer_id, text)
 
 

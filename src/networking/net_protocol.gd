@@ -15,7 +15,9 @@ const MSG_MATCH_END := "match_end"   ## Server → All: match over with summary
 const MSG_PING := "ping"             ## Client ↔ Server: latency measurement
 const MSG_PONG := "pong"
 const MSG_PLAYER_LEFT := "left"      ## Server → All: player disconnected
+const MSG_JOIN_SPECTATOR := "spectate" ## Client → Server: join as spectator
 const MSG_LATENCY_REPORT := "latency" ## Client → Server: reports measured RTT
+const MSG_EMOTE := "emote"           ## Client → Server → All: quick emote
 const MSG_ERROR := "error"           ## Server → Client: error message
 
 

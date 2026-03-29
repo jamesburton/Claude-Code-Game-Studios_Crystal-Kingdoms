@@ -17,11 +17,25 @@ const MENU_CHORDS: Array[Array] = [
 	[196.0, 246.9, 293.7],  # G major
 ]
 
-const GAME_CHORDS: Array[Array] = [
-	[293.7, 370.0, 440.0],  # D minor
-	[261.6, 329.6, 392.0],  # C major
-	[220.0, 277.2, 329.6],  # A minor
-	[246.9, 311.1, 370.0],  # Bb major-ish
+const GAME_CHORDS_SET: Array[Array] = [
+	[  # Variation 1: D minor progression
+		[293.7, 370.0, 440.0],
+		[261.6, 329.6, 392.0],
+		[220.0, 277.2, 329.6],
+		[246.9, 311.1, 370.0],
+	],
+	[  # Variation 2: E minor progression
+		[329.6, 392.0, 493.9],
+		[293.7, 370.0, 440.0],
+		[261.6, 329.6, 392.0],
+		[349.2, 440.0, 523.3],
+	],
+	[  # Variation 3: A minor moody
+		[220.0, 261.6, 329.6],
+		[196.0, 246.9, 293.7],
+		[174.6, 220.0, 261.6],
+		[196.0, 246.9, 293.7],
+	],
 ]
 
 
@@ -42,7 +56,8 @@ func play_menu_music() -> void:
 func play_game_music() -> void:
 	if not _enabled:
 		return
-	_player.stream = _generate_ambient(GAME_CHORDS, 16.0)
+	var variation: Array = GAME_CHORDS_SET[randi() % GAME_CHORDS_SET.size()]
+	_player.stream = _generate_ambient(variation, 16.0)
 	_player.play()
 
 

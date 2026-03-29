@@ -85,6 +85,35 @@ func _build_ui() -> void:
 	connect_btn.pressed.connect(func() -> void: _connect_to(ip_edit.text))
 	_join_panel.add_child(connect_btn)
 
+	var spectate_btn := Button.new()
+	spectate_btn.text = "Spectate"
+	spectate_btn.custom_minimum_size = Vector2(120, 35)
+	spectate_btn.position = Vector2(center_x + 80, vp.y / 2 + 20)
+	spectate_btn.pressed.connect(func() -> void: _connect_to(ip_edit.text, true))
+	_join_panel.add_child(spectate_btn)
+
+	# Room code section
+	var code_label := Label.new()
+	code_label.text = "— OR join by room code —"
+	code_label.add_theme_font_size_override("font_size", 14)
+	code_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+	code_label.position = Vector2(center_x - 120, vp.y / 2 + 55)
+	_join_panel.add_child(code_label)
+
+	var code_edit := LineEdit.new()
+	code_edit.placeholder_text = "Room code (e.g., CK-A3F9)"
+	code_edit.custom_minimum_size = Vector2(200, 35)
+	code_edit.position = Vector2(center_x - 120, vp.y / 2 + 78)
+	_join_panel.add_child(code_edit)
+
+	var code_btn := Button.new()
+	code_btn.text = "Join Code"
+	code_btn.custom_minimum_size = Vector2(100, 35)
+	code_btn.position = Vector2(center_x + 90, vp.y / 2 + 78)
+	code_btn.pressed.connect(func() -> void:
+		_status_label.text = "Room codes require a relay server (see server/ directory)")
+	_join_panel.add_child(code_btn)
+
 	# LAN games list
 	var lan_header := Label.new()
 	lan_header.text = "LAN Games Found:"
@@ -175,7 +204,7 @@ func _show_join_panel() -> void:
 	_discovery.server_found.connect(_on_lan_server_found)
 
 
-func _connect_to(address: String) -> void:
+func _connect_to(address: String, as_spectator: bool = false) -> void:
 	_client = GameClient.new()
 	add_child(_client)
 	_client.lobby_updated.connect(func(players: Array, host: String) -> void:

@@ -250,7 +250,8 @@ func _end_match(reason: String) -> void:
 	state = State.COMPLETE
 	turn_director.stop()
 
-	# Save replay
+	# Save replay + match history
 	ReplayManager.save_replay(config, turn_director.turn_history, scores, match_timer)
+	MatchHistory.record_match(get_summary(), config)
 
 	match_ended.emit(get_summary())

@@ -367,10 +367,29 @@ func _build_ui() -> void:
 		_fortified_label.text = str(int(v)))
 	_fortified_label.text = "0"
 
+	# Accessibility
+	_add_section_header("Accessibility")
+	var hc_check := _add_check_row("High Contrast", Accessibility.high_contrast)
+	hc_check.toggled.connect(func(on: bool) -> void:
+		Accessibility.high_contrast = on
+		Accessibility.save_settings())
+
+	# Match stats
+	var stats := MatchHistory.get_stats()
+	if stats["total"] > 0:
+		_add_spacer(4)
+		var stats_lbl := Label.new()
+		stats_lbl.text = "Stats: %d matches, %d wins, %d losses | Best: %d pts | Avg: %ds" % [
+			stats["total"], stats["wins"], stats["losses"],
+			stats["best_score"], stats["avg_duration"]]
+		stats_lbl.add_theme_font_size_override("font_size", 12)
+		stats_lbl.add_theme_color_override("font_color", Color(0.5, 0.6, 0.5))
+		_container.add_child(stats_lbl)
+
 	# Coming Soon
 	_add_spacer(4)
 	var cs_label := Label.new()
-	cs_label.text = "Coming Soon: Boosts, Online Multiplayer"
+	cs_label.text = "Coming Soon: Boosts, Tournaments"
 	cs_label.add_theme_font_size_override("font_size", 12)
 	cs_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
 	_container.add_child(cs_label)
