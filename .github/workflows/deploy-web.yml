@@ -50,7 +50,7 @@ jobs:
 
           # GitHub Pages doesn't support custom headers.
           # Use coi-serviceworker to enable SharedArrayBuffer (required by Godot).
-          curl -sL https://raw.githubusercontent.com/nickvdp/coi-serviceworker/main/coi-serviceworker.min.js \
+          curl -sL https://cdn.jsdelivr.net/npm/coi-serviceworker@0/coi-serviceworker.min.js \
             -o build/web/coi-serviceworker.min.js
 
           # Inject the service worker script into index.html before </head>
