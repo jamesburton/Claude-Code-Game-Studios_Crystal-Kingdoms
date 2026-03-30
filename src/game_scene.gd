@@ -17,6 +17,7 @@ var _pause_panel: Control
 var _paused: bool = false
 var _countdown_active: bool = false
 var _transition_rect: ColorRect
+var _current_screen: String = ""  # Track which screen we're on for Escape
 
 # Keyboard binding map: key → {player, direction}
 const KEY_BINDINGS: Dictionary = {
@@ -81,6 +82,7 @@ func _show_intro() -> void:
 func _show_main_menu() -> void:
 	_clear_scene()
 	_in_match = false
+	_current_screen = "menu"
 	_music.play_menu_music()
 
 	var menu := MainMenu.new()
@@ -96,6 +98,7 @@ func _show_main_menu() -> void:
 
 func _show_play_screen() -> void:
 	_clear_scene()
+	_current_screen = "play"
 
 	var config_screen := ConfigScreen.new()
 	config_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -115,6 +118,7 @@ func _show_play_screen() -> void:
 
 func _show_editor() -> void:
 	_clear_scene()
+	_current_screen = "editor"
 	var editor := BoardEditor.new()
 	editor.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(editor)
@@ -123,6 +127,7 @@ func _show_editor() -> void:
 
 func _show_keybindings() -> void:
 	_clear_scene()
+	_current_screen = "keybindings"
 	var kb := KeybindScreen.new()
 	kb.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(kb)
@@ -131,6 +136,7 @@ func _show_keybindings() -> void:
 
 func _show_replays() -> void:
 	_clear_scene()
+	_current_screen = "replays"
 	var replay_screen := ReplayScreen.new()
 	replay_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(replay_screen)
@@ -145,6 +151,7 @@ var _my_net_slot: int = 0
 
 func _show_lobby() -> void:
 	_clear_scene()
+	_current_screen = "lobby"
 	var lobby := LobbyScreen.new()
 	lobby.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(lobby)
@@ -286,8 +293,22 @@ func _start_network_client_match(config_data: Dictionary) -> void:
 
 
 func _show_options() -> void:
-	# For now, options goes to config screen (same as play but without starting)
-	_show_play_screen()
+	_clear_scene()
+	_current_screen = "options"
+
+	var config_screen := ConfigScreen.new()
+	config_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	config_screen.size = get_viewport().get_visible_rect().size
+	add_child(config_screen)
+	# Options doesn't start matches — hide start button by not connecting match_requested
+	config_screen.keybindings_requested.connect(func() -> void: _fade_to(_show_keybindings))
+
+	var back := Button.new()
+	back.text = "Back"
+	back.position = Vector2(20, 20)
+	back.custom_minimum_size = Vector2(80, 35)
+	back.pressed.connect(func() -> void: _fade_to(_show_main_menu))
+	add_child(back)
 
 
 func _on_match_requested(config: GameConfig, setup: Array[Dictionary]) -> void:
@@ -650,6 +671,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				_fade_to(_show_main_menu)
 			elif _in_match and _match_flow and _match_flow.state == MatchFlow.State.PLAYING:
 				_pause()
+			elif _current_screen in ["play", "options", "editor", "replays", "lobby", "keybindings"]:
+				_fade_to(_show_main_menu)
 		KEY_F11:
 			if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN:
 				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
