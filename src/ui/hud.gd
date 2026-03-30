@@ -29,32 +29,67 @@ func setup(match_flow: MatchFlow) -> void:
 
 
 func _build_ui() -> void:
-	# Timer (right-aligned)
+	var vp := get_viewport().get_visible_rect().size
+	if vp.x < 10:
+		vp = Vector2(1600, 900)
+
+	# Timer — centered at top
+	var timer_bg := ColorRect.new()
+	timer_bg.size = Vector2(120, 34)
+	timer_bg.color = Color(0.1, 0.1, 0.15, 0.85)
+	timer_bg.position = Vector2(vp.x / 2 - 60, 6)
+	add_child(timer_bg)
+
 	_timer_label = Label.new()
-	_timer_label.position = Vector2(get_viewport().get_visible_rect().size.x - 180, 10)
-	_timer_label.add_theme_font_size_override("font_size", 24)
-	_timer_label.add_theme_color_override("font_color", Color.WHITE)
+	_timer_label.position = Vector2(vp.x / 2 - 55, 10)
+	_timer_label.size = Vector2(110, 30)
+	_timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_timer_label.add_theme_font_size_override("font_size", 22)
+	_timer_label.add_theme_color_override("font_color", Color(1.0, 1.0, 0.8))
 	add_child(_timer_label)
 
-	# Player score cards — each in a container for easy repositioning
-	var card_height := 32 if _match_flow.config.player_count <= 4 else 24
-	var font_size := 18 if _match_flow.config.player_count <= 4 else 14
+	# Score panel — right side with header
+	var panel_x := vp.x - 240
+	var panel_w := 230
+	var card_height := 28 if _match_flow.config.player_count <= 4 else 22
+	var font_size := 15 if _match_flow.config.player_count <= 4 else 12
+	var panel_h := 40 + _match_flow.config.player_count * (card_height + 3)
+
+	# Panel background
+	var panel_bg := ColorRect.new()
+	panel_bg.size = Vector2(panel_w, panel_h)
+	panel_bg.position = Vector2(panel_x, 6)
+	panel_bg.color = Color(0.08, 0.08, 0.12, 0.9)
+	add_child(panel_bg)
+
+	# Panel header
+	var header := Label.new()
+	header.text = "SCORES"
+	header.position = Vector2(panel_x + 8, 10)
+	header.size = Vector2(panel_w - 16, 20)
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	header.add_theme_font_size_override("font_size", 12)
+	header.add_theme_color_override("font_color", Color(0.6, 0.6, 0.5))
+	add_child(header)
+
+	# Player cards inside the panel
 	for i in range(_match_flow.config.player_count):
 		var color: Color = PLAYER_COLORS[i] if i < PLAYER_COLORS.size() else Color.WHITE
+		var y_off := 32 + i * (card_height + 3)
 
 		var card := Control.new()
-		card.size = Vector2(280, card_height)
-		card.position = Vector2(8, 8 + i * (card_height + 4))
+		card.size = Vector2(panel_w - 12, card_height)
+		card.position = Vector2(panel_x + 6, 6 + y_off)
 		add_child(card)
 		_score_cards.append(card)
 
 		# Card background
 		var card_bg := ColorRect.new()
-		card_bg.size = Vector2(280, card_height)
-		card_bg.color = Color(0.15, 0.15, 0.2, 0.8)
+		card_bg.size = Vector2(panel_w - 12, card_height)
+		card_bg.color = Color(0.15, 0.15, 0.2, 0.7)
 		card.add_child(card_bg)
 
-		# Color bar on left edge
+		# Color bar
 		var bar := ColorRect.new()
 		bar.size = Vector2(4, card_height)
 		bar.color = color
@@ -62,18 +97,21 @@ func _build_ui() -> void:
 
 		# Score text
 		var lbl := Label.new()
-		lbl.position = Vector2(10, 2)
-		lbl.size = Vector2(265, card_height - 4)
+		lbl.position = Vector2(8, 2)
+		lbl.size = Vector2(panel_w - 28, card_height - 4)
 		lbl.add_theme_font_size_override("font_size", font_size)
 		lbl.add_theme_color_override("font_color", Color.WHITE)
+		lbl.clip_text = true
 		card.add_child(lbl)
 		_score_labels.append(lbl)
 
-	# Info label
+	# Info label — bottom center
 	_info_label = Label.new()
-	_info_label.position = Vector2(300, get_viewport().get_visible_rect().size.y - 30)
-	_info_label.add_theme_font_size_override("font_size", 13)
-	_info_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	_info_label.position = Vector2(vp.x / 2 - 200, vp.y - 28)
+	_info_label.size = Vector2(400, 20)
+	_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_info_label.add_theme_font_size_override("font_size", 12)
+	_info_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	_info_label.text = "P1: WASD/Space | P2: Arrows/Enter | Escape: pause"
 	add_child(_info_label)
 
@@ -88,31 +126,14 @@ func _process(_delta: float) -> void:
 
 func _update_layout() -> void:
 	var vp := get_viewport().get_visible_rect().size
-	var is_portrait := vp.y > vp.x
+	if vp.x < 10:
+		return
 
-	# Reposition timer
-	if is_portrait:
-		_timer_label.position = Vector2(vp.x / 2 - 60, 40)
-	else:
-		_timer_label.position = Vector2(vp.x - 180, 10)
+	# Timer stays centered
+	_timer_label.position = Vector2(vp.x / 2 - 55, 10)
 
-	# Reposition info
+	# Info at bottom
 	_info_label.position = Vector2(vp.x / 2 - 200, vp.y - 28)
-
-	# Reposition score cards (move the whole container)
-	var card_height := 32 if _match_flow.config.player_count <= 4 else 24
-	for i in range(_score_cards.size()):
-		if is_portrait:
-			var cols := mini(_score_cards.size(), 4)
-			var col := i % cols
-			var row := i / cols
-			var card_w := (vp.x - 20) / cols
-			_score_cards[i].position = Vector2(10 + col * card_w, 4 + row * (card_height + 4))
-			_score_cards[i].size.x = card_w - 5
-		else:
-			var x_pos := vp.x - 290
-			_score_cards[i].position = Vector2(x_pos, 8 + i * (card_height + 4))
-			_score_cards[i].size.x = 280
 
 
 func _update_timer() -> void:
@@ -145,8 +166,8 @@ func _update_scores() -> void:
 			if r["id"] == i:
 				break
 			rank += 1
-		var rank_badge: String = ["", "#1", "#2", "#3", "#4", "#5", "#6", "#7", "#8"][rank]
-		_score_labels[i].text = "%s %s  %d pts  %d castles" % [rank_badge, name, score, castles]
+		var rank_badge: String = ["", "#1 ", "#2 ", "#3 ", "#4 ", "#5 ", "#6 ", "#7 ", "#8 "][rank]
+		_score_labels[i].text = "%s%s %d | %d" % [rank_badge, name, score, castles]
 
 
 func _show_end_screen(summary: Dictionary) -> void:
